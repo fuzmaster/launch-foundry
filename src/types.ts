@@ -1,0 +1,14 @@
+export type Platform="facebook_reel"|"instagram_reel"|"youtube_short"|"linkedin_post"|"facebook_post"|"carousel"|"website_hero"|"email";
+export type AssetType="image"|"video"|"logo"|"screenshot"|"audio"|"document"|"other";
+export type AssetRole = "opener" | "proof" | "endcard" | "broll" | "weak" | "unassigned";
+export type ProjectAsset={id:string;filename:string;path:string;type:AssetType;width?:number;height?:number;durationSeconds?:number;notes?:string;tags:string[];qualityScore?:number;role?:AssetRole;};
+export type BrandProfile={projectName:string;businessName?:string;websiteUrl?:string;category:string;oneLiner:string;offerSummary:string;targetCustomer:string;tone:string;colors:string[];fonts:string[];proofPoints:string[];differentiators:string[];avoidClaims:string[];cta:string;};
+export type CampaignPrompt={id:string;projectName:string;platform:Platform;goal:string;audienceHint?:string;toneHint?:string;offerHint?:string;constraints:string[];createdAt:string;};
+export type Scene={id:string;startSecond:number;endSecond:number;visual:string;assetIds:string[];textOverlay:string;voiceover?:string;motionNotes?:string;};
+export type CampaignScore={audienceFit:number;platformFit:number;assetFit:number;clarity:number;effort:number;total:number;reason:string;};
+export type CampaignConcept={id:string;title:string;platform:Platform;targetAudience:string;angle:string;hook:string;promise:string;format:string;durationSeconds:number;scenes:Scene[];recommendedAssets:string[];missingAssets:string[];caption:string;cta:string;score:CampaignScore;};
+export type RenderScene={id:string;startFrame:number;durationFrames:number;layout:"full_bleed_image"|"before_after"|"image_with_text"|"slideshow"|"quote_card"|"talking_head_broll"|"website_screenshot"|"end_card";assetIds:string[];headline?:string;subheadline?:string;bodyText?:string;motionPreset:"slow_push"|"pan_left"|"pan_right"|"fade"|"slide_up"|"split_reveal"|"none";};
+export type RenderCaption={startSecond:number;endSecond:number;text:string;};
+export type RenderSpec={id:string;conceptId:string;platform:Platform;aspectRatio:"9:16"|"1:1"|"16:9"|"4:5";width:number;height:number;durationSeconds:number;brand:BrandProfile;scenes:RenderScene[];captions?:RenderCaption[];music?:string;voiceover?:string;exportName:string;};
+export type PublishingPack={conceptId:string;platform:Platform;title:string;caption:string;hashtags:string[];firstComment?:string;altText?:string;postingNotes:string;suggestedPostTime?:string;localGroupPost?:string;followUpIdeas:string[];};
+export type QAReport={conceptId:string;claimRisk:"low"|"medium"|"high";readability:"good"|"okay"|"poor";platformFit:"good"|"okay"|"poor";assetIssues:string[];missingItems:string[];suggestedFixes:string[];readyToRender:boolean;};

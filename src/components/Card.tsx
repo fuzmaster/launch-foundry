@@ -1,0 +1,2 @@
+import type { ReactNode } from "react";
+export default function Card({title,eyebrow,children,action}:{title?:string;eyebrow?:string;children:ReactNode;action?:ReactNode}){return <section className="card">{(title||eyebrow||action)&&<div className="card-head"><div>{eyebrow&&<span className="eyebrow">{eyebrow}</span>}{title&&<h2>{title}</h2>}</div>{action}</div>}<div className="card-body">{children}</div></section>}

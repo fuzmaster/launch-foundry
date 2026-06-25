@@ -1,0 +1,5 @@
+import type { BrandProfile, CampaignConcept, ProjectAsset, RenderSpec } from "../types";
+const FPS=30;
+const layouts=["full_bleed_image","image_with_text","before_after","slideshow","end_card"] as const;
+const motions=["slow_push","pan_left","split_reveal","fade","none"] as const;
+export function createRenderSpecFromConcept(concept:CampaignConcept, brand:BrandProfile, _assets:ProjectAsset[]):RenderSpec{return {id:`render-${concept.id}`,conceptId:concept.id,platform:concept.platform,aspectRatio:"9:16",width:1080,height:1920,durationSeconds:concept.durationSeconds,brand,exportName:`${brand.projectName.toLowerCase().replaceAll(" ","-")}-${concept.id}.mp4`,scenes:concept.scenes.map((scene,index)=>({id:scene.id,startFrame:scene.startSecond*FPS,durationFrames:(scene.endSecond-scene.startSecond)*FPS,layout:layouts[Math.min(index,layouts.length-1)],assetIds:scene.assetIds,headline:scene.textOverlay,bodyText:scene.voiceover,motionPreset:motions[Math.min(index,motions.length-1)]})),captions:concept.scenes.filter(s=>s.voiceover).map(s=>({startSecond:s.startSecond,endSecond:s.endSecond,text:s.voiceover??""}))};}

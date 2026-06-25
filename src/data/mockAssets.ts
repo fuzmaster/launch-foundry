@@ -1,0 +1,190 @@
+import type { ProjectAsset } from "../types";
+
+// Sourced from C:\Sites\brittenwoodworking-new (website) and
+// C:\Sites\brittenwoodworking-reels (existing Remotion render pipeline).
+export const mockAssets: ProjectAsset[] = [
+  // ── Hero / brand
+  {
+    id: "asset-hero-panel-fireplace",
+    filename: "hero-white-panel-fireplace.jpg",
+    path: "C:/Sites/brittenwoodworking-new/images/hero-white-panel-fireplace.jpg",
+    type: "image",
+    tags: ["hero", "paneling", "fireplace", "wide", "interior"],
+    notes: "Site hero. Wide, well-lit. Strong opener for any room-scale concept.",
+    qualityScore: 94,
+  },
+  {
+    id: "asset-logo-brand-v2",
+    filename: "Logo_BrandV2.png",
+    path: "C:/Sites/brittenwoodworking-new/Logo_BrandV2.png",
+    type: "logo",
+    tags: ["logo", "brand", "end-card"],
+    notes: "Primary brand mark. Use on all end cards.",
+    qualityScore: 90,
+  },
+  {
+    id: "asset-card-entryway-green-door",
+    filename: "card-entryway-green-door.jpg",
+    path: "C:/Sites/brittenwoodworking-new/images/card-entryway-green-door.jpg",
+    type: "image",
+    tags: ["entryway", "door", "exterior", "card", "high-contrast"],
+    notes: "Triangular pediment entryway. Stops scroll on dark backgrounds.",
+    qualityScore: 92,
+  },
+
+  // ── Stairway (matches rendered curved-stairway reel)
+  {
+    id: "asset-stair-hero",
+    filename: "stair-hero.jpg",
+    path: "C:/Sites/brittenwoodworking-reels/public/photos/stair-hero.jpg",
+    type: "image",
+    tags: ["stairway", "hero", "curved", "interior"],
+    notes: "Hero for curved-stairway showcase reel. Already used in production reel.",
+    qualityScore: 95,
+  },
+  {
+    id: "asset-stair-newel-finished",
+    filename: "stair-newel-finished.jpg",
+    path: "C:/Sites/brittenwoodworking-reels/public/photos/stair-newel-finished.jpg",
+    type: "image",
+    tags: ["stairway", "detail", "newel", "joinery"],
+    notes: "Close-up of finished newel cap. Strong craftsmanship proof shot.",
+    qualityScore: 90,
+  },
+  {
+    id: "asset-stair-frame-balusters",
+    filename: "stair-frame-balusters.jpg",
+    path: "C:/Sites/brittenwoodworking-reels/public/photos/stair-frame-balusters.jpg",
+    type: "image",
+    tags: ["stairway", "before", "process", "rough-framing"],
+    notes: "Mid-build: framing + balusters. Ideal 'before' for before/after.",
+    qualityScore: 84,
+  },
+  {
+    id: "asset-stair-finished-full",
+    filename: "stair-finished-full.jpg",
+    path: "C:/Sites/brittenwoodworking-reels/public/photos/stair-finished-full.jpg",
+    type: "image",
+    tags: ["stairway", "after", "finished", "reveal"],
+    notes: "Finished stairway full view. Strong 'after' reveal.",
+    qualityScore: 93,
+  },
+
+  // ── Cabinetry — curved bar (process clip)
+  {
+    id: "asset-cab-curvedbar-01",
+    filename: "cab-curvedbar-01.jpg",
+    path: "C:/Sites/brittenwoodworking-new/images/cabinetry/cab-curvedbar-01.jpg",
+    type: "image",
+    tags: ["cabinetry", "curved-bar", "process", "shop"],
+    notes: "Early build stage — curved bar in shop. Process-clip material.",
+    qualityScore: 80,
+  },
+  {
+    id: "asset-cab-curvedbar-06",
+    filename: "cab-curvedbar-06.jpg",
+    path: "C:/Sites/brittenwoodworking-new/images/cabinetry/cab-curvedbar-06.jpg",
+    type: "image",
+    tags: ["cabinetry", "curved-bar", "finished", "detail"],
+    notes: "Finished curved bar detail. Reveal shot.",
+    qualityScore: 88,
+  },
+  {
+    id: "asset-cab-breakfront-01",
+    filename: "cab-breakfront-01.jpg",
+    path: "C:/Sites/brittenwoodworking-new/images/cabinetry/cab-breakfront-01.jpg",
+    type: "image",
+    tags: ["cabinetry", "breakfront", "built-in"],
+    notes: "Breakfront built-in. Good for 'small details' angle.",
+    qualityScore: 86,
+  },
+
+  // ── Entryways
+  {
+    id: "asset-ent-archtop-01",
+    filename: "ent-archtop-01.jpg",
+    path: "C:/Sites/brittenwoodworking-new/images/entryways/ent-archtop-01.jpg",
+    type: "image",
+    tags: ["entryway", "archtop", "exterior", "period-accurate"],
+    notes: "Archtop pediment entryway. Strong period-accurate hero.",
+    qualityScore: 91,
+  },
+  {
+    id: "asset-ent-triangular-01",
+    filename: "ent-triangular-01.jpg",
+    path: "C:/Sites/brittenwoodworking-new/images/entryways/ent-triangular-01.jpg",
+    type: "image",
+    tags: ["entryway", "triangular-pediment", "exterior"],
+    notes: "Triangular pediment with fluted pilasters.",
+    qualityScore: 89,
+  },
+
+  // ── Paneling
+  {
+    id: "asset-pan-variety-01",
+    filename: "pan-variety-01.jpg",
+    path: "C:/Sites/brittenwoodworking-new/images/paneling/pan-variety-01.jpg",
+    type: "image",
+    tags: ["paneling", "raised-panel", "wall", "interior"],
+    notes: "Raised-panel wall — period detail.",
+    qualityScore: 87,
+  },
+  {
+    id: "asset-paneling-clip",
+    filename: "paneling-extra-3.mp4",
+    path: "C:/Sites/brittenwoodworking-new/images/paneling-extra-3.mp4",
+    type: "video",
+    tags: ["paneling", "broll", "motion"],
+    notes: "B-roll motion of paneling install. Pace insert.",
+    qualityScore: 76,
+  },
+
+  // ── Moldings
+  {
+    id: "asset-mol-01",
+    filename: "mol-01.jpg",
+    path: "C:/Sites/brittenwoodworking-new/images/moldings/mol-01.jpg",
+    type: "image",
+    tags: ["molding", "crown", "detail"],
+    notes: "Crown molding detail.",
+    qualityScore: 83,
+  },
+
+  // ── Already-rendered reels (deliverables — also usable as carousel/follow-up content)
+  {
+    id: "reel-curved-stairway",
+    filename: "sample-curved-stairway.mp4",
+    path: "C:/Sites/brittenwoodworking-reels/out/full/sample-curved-stairway.mp4",
+    type: "video",
+    width: 1080,
+    height: 1920,
+    durationSeconds: 14,
+    tags: ["reel", "9:16", "rendered", "stairway", "showcase"],
+    notes: "Already-rendered ProjectShowcase reel. Hero deliverable.",
+    qualityScore: 92,
+  },
+  {
+    id: "reel-stairway-before-after",
+    filename: "sample-stairway-before-after.mp4",
+    path: "C:/Sites/brittenwoodworking-reels/out/full/sample-stairway-before-after.mp4",
+    type: "video",
+    width: 1080,
+    height: 1920,
+    durationSeconds: 11,
+    tags: ["reel", "9:16", "rendered", "stairway", "before-after"],
+    notes: "Rendered BeforeAfter reel. Strong proof piece.",
+    qualityScore: 90,
+  },
+  {
+    id: "reel-curved-bar-process",
+    filename: "sample-curved-bar-process.mp4",
+    path: "C:/Sites/brittenwoodworking-reels/out/full/sample-curved-bar-process.mp4",
+    type: "video",
+    width: 1080,
+    height: 1920,
+    durationSeconds: 14,
+    tags: ["reel", "9:16", "rendered", "cabinetry", "process"],
+    notes: "Rendered ProcessClip reel for curved bar.",
+    qualityScore: 88,
+  },
+];

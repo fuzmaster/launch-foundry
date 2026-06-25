@@ -1,0 +1,17 @@
+node_modules/
+dist/
+src-tauri/target/
+tsconfig.tsbuildinfo
+
+.env
+.env.*
+*.log
+coverage/
+.vite/
+
+*.pdb
+*.dll
+*.exe
+
+.claude/settings.local.json
+System.Drawing.Drawing2D.GraphicsPath

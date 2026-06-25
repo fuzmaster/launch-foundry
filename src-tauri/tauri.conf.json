@@ -1,0 +1,68 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LaunchFoundry Lite",
+  "version": "0.1.0",
+  "identifier": "com.launchfoundry.lite",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "LaunchFoundry Lite",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 1100,
+        "minHeight": 720,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
+    ],
+    "resources": {
+      "../engine/.lf-engine-placeholder": "engine/.lf-engine-placeholder"
+    },
+    "category": "Productivity",
+    "publisher": "LaunchFoundry",
+    "copyright": "Copyright © 2026 LaunchFoundry",
+    "homepage": "https://launchfoundry.local",
+    "shortDescription": "Generate marketing reels from your project folders.",
+    "longDescription": "LaunchFoundry Lite: pick a project folder, configure the reel, render an MP4 — all without leaving the app. Engine bundling is wired but optional — see src-tauri/README.md for the prep flow.",
+    "windows": {
+      "wix": {
+        "language": ["en-US"]
+      },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser",
+        "languages": ["English"],
+        "displayLanguageSelector": false,
+        "compression": "lzma"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.13"
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
+  }
+}
