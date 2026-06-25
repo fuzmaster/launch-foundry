@@ -155,12 +155,18 @@ describe("project review imports", () => {
     const prompt = buildAssetShortlistPrompt("Demo Site", assets, { "README.md": "# Demo" }, '[{"id":"asset-1","width":1920,"height":1080}]');
     const command = buildAssetMetadataPowerShell("C:\\Sites\\demo-site", assets);
 
-    expect(prompt).toContain("Pick the assets most likely");
+    expect(prompt).toContain("Pick the assets, code facts, and content proof");
+    expect(prompt).toContain('"reelPlan"');
+    expect(prompt).toContain('"imageGenerationReferences"');
+    expect(prompt).toContain('"codeOrContentFindings"');
     expect(prompt).toContain('"assetId": ""');
     expect(prompt).toContain('"asset-1"');
-    expect(prompt).toContain("PowerShell asset metadata");
+    expect(prompt).toContain("PowerShell asset review metadata");
     expect(prompt).toContain('"width":1920');
-    expect(command).toContain("LAUNCHFOUNDRY ASSET METADATA EXPORT");
+    expect(command).toContain("LAUNCHFOUNDRY ASSET REVIEW EXPORT");
+    expect(command).toContain("$htmlOutput");
+    expect(command).toContain("$pdfOutput");
+    expect(command).toContain("--print-to-pdf");
     expect(command).toContain("$projectRoot = \"C:\\Sites\\demo-site\"");
     expect(command).toContain('"asset-1"');
   });

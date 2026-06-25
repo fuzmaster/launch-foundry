@@ -670,15 +670,15 @@ export default function ProjectScanPage({
             AI asset picker
           </strong>
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
-            Use this when the asset list feels messy. First run the PowerShell metadata command, paste the JSON it creates, then ask AI to choose opener, proof, b-roll, end-card, and weak assets with better file facts.
+            Use this when the asset list feels messy. First run the PowerShell review command. It creates JSON plus an image contact sheet PDF/HTML, then the AI picker can choose opener, proof, b-roll, end-card, code facts, and image-generation references.
           </p>
           <div style={{ margin: "12px 0", padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 8 }}>
             <strong style={{ display: "block", fontSize: 12, color: "var(--accent)", marginBottom: 8 }}>
-              1 · Get asset metadata
+              1 · Export asset review files
             </strong>
             <div className="button-row" style={{ flexWrap: "wrap" }}>
-              <button onClick={handleCopyAssetMetadataCommand}>{assetMetadataCopied ? "✓ Copied" : "Copy PowerShell command"}</button>
-              <button onClick={() => downloadText("launchfoundry-asset-metadata.ps1", assetMetadataCommand)}>Download .ps1</button>
+              <button onClick={handleCopyAssetMetadataCommand}>{assetMetadataCopied ? "✓ Copied" : "Copy review command"}</button>
+              <button onClick={() => downloadText("launchfoundry-asset-review.ps1", assetMetadataCommand)}>Download .ps1</button>
               <button onClick={() => setShowAssetMetadataCommand(v => !v)}>{showAssetMetadataCommand ? "Hide command" : "Show command"}</button>
             </div>
             {showAssetMetadataCommand && (
@@ -690,7 +690,7 @@ export default function ProjectScanPage({
               value={assetMetadataText}
               onChange={e => setAssetMetadataText(e.target.value)}
               rows={5}
-              placeholder='Paste the asset metadata JSON here, then use "Pick best assets".'
+              placeholder='Paste the asset review JSON here. Attach the generated PDF/HTML contact sheet to the AI chat, then use "Pick best assets".'
               style={{ marginTop: 12, fontFamily: "var(--mono)", fontSize: 12 }}
             />
           </div>

@@ -175,8 +175,10 @@ function summarizeAsset(asset: ProjectAsset) {
 }
 
 export function buildAssetMetadataPowerShell(projectRoot: string, assets: ProjectAsset[]): string {
-  const outputName = `${(projectRoot.split(/[\\/]/).filter(Boolean).pop() || "launchfoundry").replace(/[^a-z0-9_-]/gi, "-")}-asset-metadata.json`;
-  const output = `C:\\Users\\$env:USERNAME\\Downloads\\${outputName}`;
+  const outputBase = `${(projectRoot.split(/[\\/]/).filter(Boolean).pop() || "launchfoundry").replace(/[^a-z0-9_-]/gi, "-")}-asset-review`;
+  const output = `C:\\Users\\$env:USERNAME\\Downloads\\${outputBase}.json`;
+  const htmlOutput = `C:\\Users\\$env:USERNAME\\Downloads\\${outputBase}.html`;
+  const pdfOutput = `C:\\Users\\$env:USERNAME\\Downloads\\${outputBase}.pdf`;
   const assetList = assets.map(a => ({
     id: a.id,
     filename: a.filename,
@@ -186,11 +188,16 @@ export function buildAssetMetadataPowerShell(projectRoot: string, assets: Projec
     currentRole: a.role ?? "unassigned",
   }));
 
-  return `# LAUNCHFOUNDRY ASSET METADATA EXPORT
-# Run this after a folder scan when you want AI to choose the strongest visuals.
+  return `# LAUNCHFOUNDRY ASSET REVIEW EXPORT
+# Run this after a folder scan. It creates:
+# 1) JSON metadata for all scanned assets
+# 2) an HTML visual contact sheet
+# 3) a PDF contact sheet if Microsoft Edge or Chrome is available
 
 $projectRoot = "${projectRoot || "C:\\Sites\\my-project"}"
 $output = "${output}"
+$htmlOutput = "${htmlOutput}"
+$pdfOutput = "${pdfOutput}"
 
 $assetsJson = @'
 ${JSON.stringify(assetList, null, 2)}
@@ -199,6 +206,7 @@ ${JSON.stringify(assetList, null, 2)}
 $assets = $assetsJson | ConvertFrom-Json
 $projectRoot = (Get-Item -LiteralPath $projectRoot -ErrorAction SilentlyContinue).FullName
 Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
+$visualTypes = @("image", "logo", "screenshot", "video")
 
 $results = foreach ($asset in $assets) {
   $assetPath = [string]$asset.path
@@ -232,6 +240,14 @@ $results = foreach ($asset in $assets) {
     } catch {}
   }
 
+  $lowerPath = $item.FullName.ToLowerInvariant()
+  $suggestedUse = @()
+  if ($lowerPath -match "logo|brand|mark") { $suggestedUse += "endcard" }
+  if ($lowerPath -match "before|after|result|proof|case|testimonial|review") { $suggestedUse += "proof" }
+  if ($lowerPath -match "hero|cover|banner|screenshot|screen") { $suggestedUse += "opener" }
+  if ($lowerPath -match "process|work|shop|detail|clip|broll|b-roll") { $suggestedUse += "broll" }
+  if ($item.Length -lt 12000) { $suggestedUse += "possibly-too-small" }
+
   [pscustomobject]@{
     id = $asset.id
     filename = $asset.filename
@@ -245,12 +261,85 @@ $results = foreach ($asset in $assets) {
     height = $height
     tags = $asset.tags
     currentRole = $asset.currentRole
+    visualReview = $asset.type -in $visualTypes
+    suggestedUseFromPath = $suggestedUse
   }
 }
 
 $results | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $output -Encoding UTF8
+
+$visualAssets = @($results | Where-Object { $_.exists -and $_.visualReview })
+$cards = foreach ($asset in $visualAssets) {
+  $safePath = [System.Net.WebUtility]::HtmlEncode($asset.path)
+  $safeName = [System.Net.WebUtility]::HtmlEncode($asset.filename)
+  $safeId = [System.Net.WebUtility]::HtmlEncode($asset.id)
+  $safeType = [System.Net.WebUtility]::HtmlEncode($asset.type)
+  $dim = if ($asset.width -and $asset.height) { "$($asset.width)x$($asset.height)" } else { "dimensions unknown" }
+  $sizeKb = [math]::Round(($asset.sizeBytes / 1KB), 1)
+  $fileUri = ([System.Uri]$asset.path).AbsoluteUri
+  $media = if ($asset.type -eq "video") {
+    "<div class='video-box'>VIDEO<br/><span>No thumbnail generated</span></div>"
+  } else {
+    "<img src='$fileUri' alt='$safeName' />"
+  }
+  "<section class='card'>$media<div class='meta'><strong>$safeId</strong><span>$safeName</span><small>$safeType | $dim | $sizeKb KB</small><code>$safePath</code></div></section>"
+}
+
+$html = @"
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>LaunchFoundry Asset Review</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #15110d; }
+    h1 { font-size: 24px; margin: 0 0 6px; }
+    p { margin: 0 0 18px; color: #5b534a; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .card { break-inside: avoid; border: 1px solid #cfc7ba; border-radius: 8px; padding: 10px; }
+    img { width: 100%; height: 170px; object-fit: contain; background: #f5f1eb; border-radius: 4px; }
+    .video-box { height: 170px; display: grid; place-items: center; text-align: center; background: #18130f; color: #fff; border-radius: 4px; }
+    .video-box span { font-size: 11px; color: #c9c1b5; }
+    .meta { display: grid; gap: 4px; margin-top: 8px; font-size: 12px; }
+    .meta strong { font-family: Consolas, monospace; color: #9a5a18; }
+    .meta small { color: #6b6258; }
+    code { font-size: 10px; white-space: pre-wrap; word-break: break-all; color: #4f453b; }
+    @page { size: letter; margin: 0.35in; }
+  </style>
+</head>
+<body>
+  <h1>LaunchFoundry Asset Review</h1>
+  <p>Attach this PDF/HTML to ChatGPT or Claude with the asset picker prompt. Use the IDs printed on each card.</p>
+  <div class="grid">
+    $($cards -join [Environment]::NewLine)
+  </div>
+</body>
+</html>
+"@
+
+$html | Set-Content -LiteralPath $htmlOutput -Encoding UTF8
+
+$browser = @(
+  "$env:ProgramFiles\\Microsoft\\Edge\\Application\\msedge.exe",
+  "\${env:ProgramFiles(x86)}\\Microsoft\\Edge\\Application\\msedge.exe",
+  "$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe",
+  "\${env:ProgramFiles(x86)}\\Google\\Chrome\\Application\\chrome.exe"
+) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+
+if ($browser) {
+  $htmlUri = ([System.Uri]$htmlOutput).AbsoluteUri
+  Start-Process -FilePath $browser -ArgumentList @("--headless", "--disable-gpu", "--print-to-pdf=$pdfOutput", $htmlUri) -Wait -WindowStyle Hidden
+}
+
 Write-Host "LaunchFoundry asset metadata created: $output"
-Write-Host "Assets checked: $($assets.Count)"`;
+Write-Host "LaunchFoundry visual contact sheet created: $htmlOutput"
+if (Test-Path -LiteralPath $pdfOutput) {
+  Write-Host "LaunchFoundry visual PDF created: $pdfOutput"
+} else {
+  Write-Host "PDF was not created automatically. Open the HTML file and print/save as PDF."
+}
+Write-Host "Assets checked: $($assets.Count)"
+Write-Host "Visual assets on contact sheet: $($visualAssets.Count)"`;
 }
 
 export function buildAssetShortlistPrompt(
@@ -262,7 +351,7 @@ export function buildAssetShortlistPrompt(
   return `You are helping LaunchFoundry choose the best assets from an uploaded website/app scan.
 
 Goal:
-Pick the assets most likely to make good campaign videos and social posts. Focus on visual clarity, proof, relevance to the product/service, and whether the asset can support a 9:16 short-form video.
+Pick the assets, code facts, and content proof most likely to make good reels, clips, social posts, and image-generation prompts. Focus on visual clarity, proof, relevance to the product/service, and whether an asset can support a 9:16 short-form video.
 
 Project: ${projectName || "Uploaded website/app"}
 
@@ -291,6 +380,36 @@ Return only valid JSON in this shape:
       "reason": ""
     }
   ],
+  "reelPlan": {
+    "openerAssetIds": [],
+    "proofAssetIds": [],
+    "brollAssetIds": [],
+    "endcardAssetIds": [],
+    "assetsToAvoid": []
+  },
+  "clipIdeas": [
+    {
+      "title": "",
+      "assetIds": [],
+      "whyTheseAssets": "",
+      "missingFootage": []
+    }
+  ],
+  "imageGenerationReferences": [
+    {
+      "assetIds": [],
+      "prompt": "",
+      "negativePrompt": "",
+      "usage": "background|product-hero|before-after|thumbnail|end-card"
+    }
+  ],
+  "codeOrContentFindings": [
+    {
+      "sourcePath": "",
+      "finding": "",
+      "howToUseInCampaign": ""
+    }
+  ],
   "missingAssets": [],
   "notes": []
 }
@@ -302,7 +421,10 @@ Rules:
 - Mark logos or clean brand cards as endcard, not proof.
 - Mark code files, tiny icons, broken files, duplicates, and unrelated assets as weak.
 - If you cannot inspect pixels, use filename, path, type, tags, dimensions, and metadata to make the best conservative choice.
-- If the user pasted PowerShell metadata below the inventory, use it to prefer larger, sharper assets.
+- If a PDF/HTML contact sheet is attached, inspect it and prefer visually clear, non-duplicate, high-resolution assets.
+- If PowerShell metadata is provided, use dimensions/file sizes to prefer larger, sharper images and identify weak assets.
+- Use code/content findings only when supported by source excerpts, README, package.json, visible UI text, or filenames.
+- For imageGenerationReferences, write prompts that reference the attached images by asset ID and describe what to preserve.
 - Do not invent asset IDs.
 
 Context inventory:
@@ -314,13 +436,13 @@ Asset inventory:
 ${JSON.stringify(assets.map(summarizeAsset), null, 2)}
 \`\`\`
 ${assetMetadata.trim() ? `
-PowerShell asset metadata:
+PowerShell asset review metadata:
 \`\`\`json
 ${assetMetadata.trim()}
 \`\`\`
 ` : `
-PowerShell asset metadata:
-Not provided yet. If the user can provide it, prefer waiting for metadata before making final asset choices.
+PowerShell asset review metadata:
+Not provided yet. If the user can provide it, prefer waiting for metadata and the PDF/HTML contact sheet before making final asset choices.
 `}`;
 }
 
