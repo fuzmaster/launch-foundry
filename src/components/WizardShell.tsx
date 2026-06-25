@@ -248,7 +248,8 @@ export default function WizardShell({
                 You have a project, campaign concepts, render path, music choice, schedule, and platform plan. Pick what you want to do next.
               </p>
               <div className="finish-modal__actions">
-                <button className="primary" type="button" onClick={() => { setPage("build"); setFinishOpen(false); }}>Go render videos</button>
+                <button className="primary" type="button" onClick={() => { setPage("renderspec"); setFinishOpen(false); }}>Review render spec</button>
+                <button type="button" onClick={() => { setPage("build"); setFinishOpen(false); }}>Open video builder</button>
                 <button type="button" onClick={() => { setPage("publishing"); setFinishOpen(false); }}>Review publishing pack</button>
                 <button type="button" onClick={() => { setPage("qa"); setFinishOpen(false); }}>Run QA check</button>
                 <button type="button" onClick={() => { setPage("projects"); setFinishOpen(false); }}>Back to projects</button>
