@@ -253,7 +253,12 @@ Write-Host "LaunchFoundry asset metadata created: $output"
 Write-Host "Assets checked: $($assets.Count)"`;
 }
 
-export function buildAssetShortlistPrompt(projectName: string, assets: ProjectAsset[], sourceExcerpts: Record<string, string> = {}): string {
+export function buildAssetShortlistPrompt(
+  projectName: string,
+  assets: ProjectAsset[],
+  sourceExcerpts: Record<string, string> = {},
+  assetMetadata = ""
+): string {
   return `You are helping LaunchFoundry choose the best assets from an uploaded website/app scan.
 
 Goal:
@@ -308,8 +313,15 @@ Asset inventory:
 \`\`\`json
 ${JSON.stringify(assets.map(summarizeAsset), null, 2)}
 \`\`\`
-
-Optional: if available, also consider pasted LaunchFoundry asset metadata JSON from the PowerShell command.`;
+${assetMetadata.trim() ? `
+PowerShell asset metadata:
+\`\`\`json
+${assetMetadata.trim()}
+\`\`\`
+` : `
+PowerShell asset metadata:
+Not provided yet. If the user can provide it, prefer waiting for metadata before making final asset choices.
+`}`;
 }
 
 export function buildCombinedBriefCampaignPrompt(

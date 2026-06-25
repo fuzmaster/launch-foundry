@@ -152,12 +152,14 @@ describe("project review imports", () => {
   });
 
   it("builds asset picker prompts and metadata commands", () => {
-    const prompt = buildAssetShortlistPrompt("Demo Site", assets, { "README.md": "# Demo" });
+    const prompt = buildAssetShortlistPrompt("Demo Site", assets, { "README.md": "# Demo" }, '[{"id":"asset-1","width":1920,"height":1080}]');
     const command = buildAssetMetadataPowerShell("C:\\Sites\\demo-site", assets);
 
     expect(prompt).toContain("Pick the assets most likely");
     expect(prompt).toContain('"assetId": ""');
     expect(prompt).toContain('"asset-1"');
+    expect(prompt).toContain("PowerShell asset metadata");
+    expect(prompt).toContain('"width":1920');
     expect(command).toContain("LAUNCHFOUNDRY ASSET METADATA EXPORT");
     expect(command).toContain("$projectRoot = \"C:\\Sites\\demo-site\"");
     expect(command).toContain('"asset-1"');

@@ -127,6 +127,7 @@ export default function ProjectScanPage({
   const [assetPromptCopied, setAssetPromptCopied] = useState(false);
   const [assetMetadataCopied, setAssetMetadataCopied] = useState(false);
   const [showAssetMetadataCommand, setShowAssetMetadataCommand] = useState(false);
+  const [assetMetadataText, setAssetMetadataText] = useState("");
   const [assetAiText, setAssetAiText] = useState("");
   const [assetAiFeedback, setAssetAiFeedback] = useState<{ kind: "ok" | "error"; message: string } | null>(null);
   const [aiResultText, setAiResultText] = useState("");
@@ -169,8 +170,8 @@ export default function ProjectScanPage({
     [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets, workingPrompt]
   );
   const assetShortlistPrompt = useMemo(
-    () => buildAssetShortlistPrompt(detectedRoot || promptCtx.brand.projectName, activeAssets, scannedAssets ? sourceExcerpts : {}),
-    [detectedRoot, promptCtx.brand.projectName, activeAssets, scannedAssets, sourceExcerpts]
+    () => buildAssetShortlistPrompt(detectedRoot || promptCtx.brand.projectName, activeAssets, scannedAssets ? sourceExcerpts : {}, assetMetadataText),
+    [detectedRoot, promptCtx.brand.projectName, activeAssets, scannedAssets, sourceExcerpts, assetMetadataText]
   );
   const assetMetadataCommand = useMemo(
     () => buildAssetMetadataPowerShell(rootPath.trim() || detectedRoot || "C:\\Sites\\my-project", activeAssets),
@@ -669,21 +670,44 @@ export default function ProjectScanPage({
             AI asset picker
           </strong>
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
-            Use this when the asset list feels messy. The prompt asks AI to choose opener, proof, b-roll, end-card, and weak assets. The PowerShell command adds file size and image dimensions when filenames alone are not enough.
+            Use this when the asset list feels messy. First run the PowerShell metadata command, paste the JSON it creates, then ask AI to choose opener, proof, b-roll, end-card, and weak assets with better file facts.
           </p>
+          <div style={{ margin: "12px 0", padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 8 }}>
+            <strong style={{ display: "block", fontSize: 12, color: "var(--accent)", marginBottom: 8 }}>
+              1 · Get asset metadata
+            </strong>
+            <div className="button-row" style={{ flexWrap: "wrap" }}>
+              <button onClick={handleCopyAssetMetadataCommand}>{assetMetadataCopied ? "✓ Copied" : "Copy PowerShell command"}</button>
+              <button onClick={() => downloadText("launchfoundry-asset-metadata.ps1", assetMetadataCommand)}>Download .ps1</button>
+              <button onClick={() => setShowAssetMetadataCommand(v => !v)}>{showAssetMetadataCommand ? "Hide command" : "Show command"}</button>
+            </div>
+            {showAssetMetadataCommand && (
+              <pre style={{ marginTop: 12, maxHeight: 300, overflow: "auto", background: "rgba(0,0,0,0.25)", padding: 12, borderRadius: 6, fontSize: 12, whiteSpace: "pre-wrap" }}>
+                {assetMetadataCommand}
+              </pre>
+            )}
+            <textarea
+              value={assetMetadataText}
+              onChange={e => setAssetMetadataText(e.target.value)}
+              rows={5}
+              placeholder='Paste the asset metadata JSON here, then use "Pick best assets".'
+              style={{ marginTop: 12, fontFamily: "var(--mono)", fontSize: 12 }}
+            />
+          </div>
+          <div style={{ margin: "12px 0", padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 8 }}>
+            <strong style={{ display: "block", fontSize: 12, color: "var(--accent)", marginBottom: 8 }}>
+              2 · Ask AI to pick the best assets
+            </strong>
           <div className="button-row" style={{ flexWrap: "wrap" }}>
             <SendToAI promptText={assetShortlistPrompt} buttonText="Pick best assets" size="compact" />
             <button onClick={handleCopyAssetPrompt}>{assetPromptCopied ? "✓ Copied" : "Copy asset prompt"}</button>
             <button onClick={() => downloadText("launchfoundry-asset-picker-prompt.md", assetShortlistPrompt)}>Download prompt</button>
-            <button onClick={handleCopyAssetMetadataCommand}>{assetMetadataCopied ? "✓ Copied" : "Copy metadata command"}</button>
-            <button onClick={() => downloadText("launchfoundry-asset-metadata.ps1", assetMetadataCommand)}>Download .ps1</button>
-            <button onClick={() => setShowAssetMetadataCommand(v => !v)}>{showAssetMetadataCommand ? "Hide command" : "Show command"}</button>
           </div>
-          {showAssetMetadataCommand && (
-            <pre style={{ marginTop: 12, maxHeight: 300, overflow: "auto", background: "rgba(0,0,0,0.25)", padding: 12, borderRadius: 6, fontSize: 12, whiteSpace: "pre-wrap" }}>
-              {assetMetadataCommand}
-            </pre>
-          )}
+          </div>
+          <div style={{ margin: "12px 0 0", padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 8 }}>
+            <strong style={{ display: "block", fontSize: 12, color: "var(--accent)", marginBottom: 8 }}>
+              3 · Paste AI's asset choices
+            </strong>
           <textarea
             value={assetAiText}
             onChange={e => setAssetAiText(e.target.value)}
@@ -695,6 +719,7 @@ export default function ProjectScanPage({
             <button className="primary" onClick={applyAssetAiResult} disabled={!assetAiText.trim()}>
               Apply asset choices
             </button>
+          </div>
           </div>
           {assetAiFeedback && (
             <div className={`inline-feedback inline-feedback--${assetAiFeedback.kind}`}>
