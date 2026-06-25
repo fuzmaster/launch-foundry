@@ -120,6 +120,31 @@ a { color: var(--accent); }
 .import-status--busy .spinner { animation: lf-spin 800ms linear infinite; }
 @keyframes lf-spin { to { transform: rotate(360deg); } }
 
+.next-step-callout {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-glow);
+  padding: 14px 16px;
+}
+.next-step-callout strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.next-step-callout span {
+  display: block;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.next-step-callout button { flex: 0 0 auto; }
+
 .toast {
   position: fixed;
   right: 20px;

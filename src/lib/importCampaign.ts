@@ -14,6 +14,48 @@ function pickBrand(raw: unknown): BrandProfile | undefined {
   return raw as unknown as BrandProfile;
 }
 
+function firstString(values: unknown[], fallback = ""): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value;
+    if (Array.isArray(value)) {
+      const match = value.find((x): x is string => typeof x === "string" && x.trim().length > 0);
+      if (match) return match;
+    }
+  }
+  return fallback;
+}
+
+function pickProductBriefBrand(raw: Record<string, unknown>): BrandProfile | undefined {
+  const visualIdentity = isObj(raw.visualIdentity) ? raw.visualIdentity : {};
+  const projectName = asString(readField(raw, "projectName", "name"));
+  const category = asString(readField(raw, "category", "websiteOrAppType", "appType"), "website");
+  const oneLiner = asString(readField(raw, "oneLiner", "coreProblemSolved", "notesForLaunchFoundry"));
+  if (!projectName || !oneLiner) return undefined;
+
+  const callsToAction = asStringArray(readField(raw, "callsToAction", "ctas"));
+  const proofPoints = [
+    ...asStringArray(readField(raw, "proofPoints")),
+    ...asStringArray(readField(raw, "trustSignals")),
+  ];
+
+  return {
+    projectName,
+    businessName: asString(readField(raw, "businessName"), projectName),
+    websiteUrl: asString(readField(raw, "websiteUrl", "url")) || undefined,
+    category,
+    oneLiner,
+    offerSummary: asString(readField(raw, "offerSummary", "primaryOffer", "coreProblemSolved"), oneLiner),
+    targetCustomer: firstString([readField(raw, "targetCustomer", "primaryAudience"), readField(raw, "secondaryAudiences")]),
+    tone: asString(readField(raw, "tone", "voiceAndTone"), "clear and practical"),
+    colors: asStringArray(readField(visualIdentity, "colors")),
+    fonts: asStringArray(readField(visualIdentity, "fonts")),
+    proofPoints,
+    differentiators: asStringArray(readField(raw, "differentiators", "visibleFeatures", "recommendedCampaignAngles")),
+    avoidClaims: asStringArray(readField(raw, "avoidClaims", "risksOrMissingContext")),
+    cta: firstString([readField(raw, "cta"), callsToAction], "Learn more"),
+  };
+}
+
 function asString(v: unknown, fallback = ""): string {
   return typeof v === "string" ? v : fallback;
 }
@@ -135,7 +177,7 @@ export function importCampaignJson(raw: string): ImportResult {
   if (!isObj(parsed)) return { ok: false, error: "Expected a top-level JSON object." };
 
   const warnings: string[] = [];
-  const brand = pickBrand(parsed.brand);
+  const brand = pickBrand(parsed.brand) ?? pickProductBriefBrand(parsed);
   let concepts = pickConcepts(parsed.concepts);
   const recommendation = typeof parsed.recommendation === "string" ? parsed.recommendation : undefined;
 
@@ -149,7 +191,7 @@ export function importCampaignJson(raw: string): ImportResult {
   }
 
   if (!brand) {
-    warnings.push("No `brand` field found (or it's missing required fields: projectName + oneLiner + category). Brand left unchanged.");
+    warnings.push("No importable brand found. Expected either `brand` with projectName + oneLiner + category, or a product brief with projectName + oneLiner/coreProblemSolved.");
   }
   if (!concepts) {
     // Diagnostics — explain WHY concepts were rejected so the user can see if Claude returned the wrong shape.

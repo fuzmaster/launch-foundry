@@ -6,6 +6,7 @@ import { renderPublishingPack } from "./templateUtils";
 import { loadState, saveState } from "./storage";
 import { parseCodeReview } from "./codeReviewParser";
 import { buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "./auditPrompt";
+import { importCampaignJson } from "./importCampaign";
 
 const brand: BrandProfile = {
   projectName: "Test Shop",
@@ -148,5 +149,31 @@ describe("project review imports", () => {
     expect(command).toContain("<project_files>");
     expect(prompt).toContain("Audit this website/application");
     expect(prompt).toContain("Demo Site");
+  });
+});
+
+describe("campaign imports", () => {
+  it("imports Step 3 product brief JSON as a brand profile", () => {
+    const result = importCampaignJson(JSON.stringify({
+      projectName: "SRT Fixer",
+      businessName: "SRT Fixer",
+      category: "developer tool",
+      oneLiner: "Fix subtitle timing files quickly.",
+      primaryAudience: "Video editors",
+      primaryOffer: "A simple subtitle repair workflow",
+      voiceAndTone: "helpful and direct",
+      visualIdentity: { colors: ["#111111"], fonts: ["Inter"] },
+      callsToAction: ["Fix my subtitles"],
+      trustSignals: ["local-first"],
+      differentiators: ["simple import flow"],
+      risksOrMissingContext: ["No pricing shown"],
+    }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.brand?.projectName).toBe("SRT Fixer");
+    expect(result.brand?.targetCustomer).toBe("Video editors");
+    expect(result.brand?.cta).toBe("Fix my subtitles");
+    expect(result.brand?.proofPoints).toContain("local-first");
   });
 });

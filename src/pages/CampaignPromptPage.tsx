@@ -55,7 +55,7 @@ export default function CampaignPromptPage({
   return (
     <div className="page">
       <h1>Campaign Prompt</h1>
-      <p className="lede">Start with the campaign goal. Paste an LLM mega-prompt result below to populate the brand and concepts in one shot.</p>
+      <p className="lede">Start with the campaign goal. Paste an AI product brief or full campaign JSON below to populate the project.</p>
 
       <Card title="Input prompt" eyebrow="Step 1">
         <label>
@@ -91,7 +91,7 @@ export default function CampaignPromptPage({
       </Card>
 
       <Card
-        title="Paste mega-prompt result"
+        title="Paste AI result"
         eyebrow="Import"
         action={
           <div className="button-row">
@@ -103,7 +103,7 @@ export default function CampaignPromptPage({
         }
       >
         <p style={{ margin: "0 0 10px", color: "var(--muted)", fontSize: 13 }}>
-          Run the intake prompt from the Project Scan page → paste Claude's JSON response here → the brand profile updates and the imported concepts replace the project's mock concepts. Triple-backtick fences and leading prose are stripped automatically.
+          Paste the product brief from Step 3 or the full campaign prompt result from Step 4. Product briefs update the brand profile; full campaign JSON can also replace the project's concepts. Triple-backtick fences and leading prose are stripped automatically.
         </p>
         <details style={{ margin: "0 0 12px" }}>
           <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--accent)", marginBottom: 8 }}>
@@ -177,7 +177,7 @@ export default function CampaignPromptPage({
 }`}
           </pre>
           <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)" }}>
-            Minimum required to import: <code>brand</code> with <code>projectName + oneLiner + category</code>, OR a non-empty <code>concepts</code> array. Extra fields (audience, platformStrategy, renderSpec, qa) are accepted but ignored — they re-derive locally from brand + concepts.
+            Minimum required to import: <code>brand</code> with <code>projectName + oneLiner + category</code>, a Step 3 product brief with <code>projectName</code> plus <code>oneLiner</code> or <code>coreProblemSolved</code>, OR a non-empty <code>concepts</code> array. Extra fields are accepted but may be ignored.
           </p>
         </details>
         <textarea

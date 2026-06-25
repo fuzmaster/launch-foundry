@@ -268,6 +268,15 @@ export default function ProjectScanPage({
             <span>{importStatus ?? "Working..."}</span>
           </div>
         )}
+        {scannedAssets && (
+          <div className="next-step-callout">
+            <div>
+              <strong>When ChatGPT or Claude gives you JSON back, paste it on the next page.</strong>
+              <span>Use this for the product brief result or the full campaign prompt result.</span>
+            </div>
+            <button className="primary" onClick={goToCampaignPrompt}>Next: paste AI result</button>
+          </div>
+        )}
         <input
           ref={inputRef}
           type="file"
@@ -391,6 +400,7 @@ export default function ProjectScanPage({
           action={
             <div className="button-row">
               <SendToAI promptText={designBriefPrompt} buttonText="Make product brief" />
+              <button className="primary" onClick={goToCampaignPrompt}>Paste AI result</button>
               <button onClick={handleCopyAuditPrompt}>{auditCopied ? "✓ Copied" : "Copy audit prompt"}</button>
               <button onClick={() => downloadText("launchfoundry-website-audit-prompt.md", auditPrompt)}>Download audit prompt</button>
             </div>
