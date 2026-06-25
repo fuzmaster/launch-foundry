@@ -18,6 +18,7 @@ type DroppedTrack = {
   base64: string;       // for the render pipeline to bundle
   sizeBytes: number;
 };
+type MusicMode = "with_music" | "no_music";
 
 export default function MusicPage() {
   // Pull brand tokens — for the Studio path, tokens live under the
@@ -37,6 +38,7 @@ export default function MusicPage() {
   const [mood, setMood] = useState<string>(() => loadState("launchfoundry.music.mood", ""));
   const [bpm, setBpm] = useState<string>(() => loadState("launchfoundry.music.bpm", ""));
   const [dropped, setDropped] = useState<DroppedTrack | null>(() => loadState<DroppedTrack | null>("launchfoundry.music.dropped", null));
+  const [mode, setMode] = useState<MusicMode>(() => loadState<MusicMode>("launchfoundry.music.mode", "with_music"));
   const [copied, setCopied] = useState(false);
 
   useEffect(() => saveState("launchfoundry.music.provider", provider), [provider]);
@@ -45,6 +47,7 @@ export default function MusicPage() {
   useEffect(() => saveState("launchfoundry.music.mood", mood), [mood]);
   useEffect(() => saveState("launchfoundry.music.bpm", bpm), [bpm]);
   useEffect(() => saveState("launchfoundry.music.dropped", dropped), [dropped]);
+  useEffect(() => saveState("launchfoundry.music.mode", mode), [mode]);
 
   const briefInputs = useMemo(() => {
     const base = makeBriefInputs(tokens, conceptHook, duration, mood || undefined);
@@ -79,6 +82,32 @@ export default function MusicPage() {
         Drop the resulting MP3 back here so it bundles into your render.
       </p>
 
+      <Card title="Soundtrack choice" eyebrow="Required">
+        <div className="choice-grid">
+          <label className={mode === "with_music" ? "choice-card choice-card--picked" : "choice-card"}>
+            <input type="radio" name="musicMode" checked={mode === "with_music"} onChange={() => setMode("with_music")} />
+            <span>
+              <strong>Use music</strong>
+              <em>Find or generate a track, then drop the audio file here.</em>
+            </span>
+          </label>
+          <label className={mode === "no_music" ? "choice-card choice-card--picked" : "choice-card"}>
+            <input type="radio" name="musicMode" checked={mode === "no_music"} onChange={() => setMode("no_music")} />
+            <span>
+              <strong>No music needed</strong>
+              <em>Mark this step complete for voiceover-only, sound-off, or silent videos.</em>
+            </span>
+          </label>
+        </div>
+        {mode === "no_music" && (
+          <div className="inline-feedback inline-feedback--ok">
+            <strong>Music skipped.</strong> This campaign will continue without a soundtrack.
+          </div>
+        )}
+      </Card>
+
+      {mode === "with_music" && (
+      <>
       <Card title="Choose provider" eyebrow="Step 1">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
           {PROVIDER_ORDER.map(id => {
@@ -196,6 +225,8 @@ export default function MusicPage() {
           The PowerShell-script path doesn't bundle audio yet — that's a Phase D-2 follow-up.
         </p>
       </Card>
+      </>
+      )}
     </div>
   );
 }

@@ -176,6 +176,40 @@ a { color: var(--accent); }
   line-height: 1.55;
 }
 
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+.choice-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.14);
+  padding: 12px 14px;
+  cursor: pointer;
+}
+.choice-card--picked {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+.choice-card input { margin-top: 3px; }
+.choice-card strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.choice-card em {
+  display: block;
+  color: var(--muted);
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .toast {
   position: fixed;
   right: 20px;
