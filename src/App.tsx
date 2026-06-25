@@ -235,7 +235,7 @@ export default function App() {
     <div className="page">
       <h1>No concepts yet</h1>
       <p className="lede">
-        This project doesn't have any campaign concepts yet. Run the intake prompt from Project Scan, paste Claude's result on the Campaign Prompt page, and concepts will populate.
+        This project doesn't have any campaign concepts yet. Import context on the Project page, complete Step 3, then run Step 4 to generate campaign concepts.
       </p>
     </div>
   );
@@ -260,8 +260,9 @@ export default function App() {
   }
 
   // Wizard step completion — informs the stepper ✓ marks + Next button hint.
+  const scanBriefImported = loadState("launchfoundry.scan.briefImported", false);
   const stepCompletion: Record<WizardStepKey, boolean> = {
-    project:   !!scannedAssets || (project.assets.length > 0),
+    project:   (!!scannedAssets && scanBriefImported) || (!scannedAssets && project.assets.length > 0),
     research:  hasConcepts,
     concepts:  hasConcepts && !!selectedId,
     build:     hasConcepts,                          // user can render at any time once concepts exist

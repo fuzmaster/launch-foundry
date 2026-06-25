@@ -83,6 +83,7 @@ export default function WizardShell({
   const isWizardStep = WIZARD_STEPS.some(s => s.key === page);
   const currentStep = isWizardStep ? (page as WizardStepKey) : null;
   const currentIdx = currentStep ? WIZARD_STEPS.findIndex(s => s.key === currentStep) : -1;
+  const currentStepComplete = currentStep ? stepCompletion[currentStep] : true;
   const goNext = () => { if (currentIdx >= 0 && currentIdx < WIZARD_STEPS.length - 1) setPage(WIZARD_STEPS[currentIdx + 1]!.key); };
   const goPrev = () => { if (currentIdx > 0) setPage(WIZARD_STEPS[currentIdx - 1]!.key); };
 
@@ -257,8 +258,8 @@ export default function WizardShell({
             type="button"
             className="primary"
             onClick={goNext}
-            disabled={currentIdx === WIZARD_STEPS.length - 1}
-            title={!stepCompletion[currentStep] ? "Step not complete — you can still continue" : undefined}
+            disabled={currentIdx === WIZARD_STEPS.length - 1 || !currentStepComplete}
+            title={!currentStepComplete ? "Finish this step before continuing" : undefined}
           >
             Next: {prefs.simpleMode
               ? (WIZARD_STEPS[currentIdx + 1]?.plainLabel ?? "Done")
