@@ -114,6 +114,7 @@ export default function ProjectScanPage({
     }
     return promptCtx;
   }, [scannedAssets, detectedRoot, promptCtx]);
+  const workingPrompt = intakeCtx.prompt;
   const intakePrompt = useMemo(
     () => renderMegaPrompt(intakeCtx, scannedAssets ? sourceExcerpts : undefined),
     [intakeCtx, scannedAssets, sourceExcerpts]
@@ -128,8 +129,8 @@ export default function ProjectScanPage({
     [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets]
   );
   const combinedBriefCampaignPrompt = useMemo(
-    () => buildCombinedBriefCampaignPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets, promptCtx.prompt),
-    [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets, promptCtx.prompt]
+    () => buildCombinedBriefCampaignPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets, workingPrompt),
+    [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets, workingPrompt]
   );
   const isScanMode = !!scannedAssets;
   const excerptCount = Object.keys(sourceExcerpts).length;
@@ -146,6 +147,7 @@ export default function ProjectScanPage({
       setPreviewDataUrls(dataUrls);
       setScannedAssets(scanned);
       setSourceExcerpts(sourceExcerpts);
+      setPrompt(buildScanStubContext(rootFolderName, scanned, promptCtx.prompt, promptCtx.platform).prompt);
       setPendingAssets([]);
       setPendingExcerpts({});
       setBriefImported(false);
@@ -179,6 +181,7 @@ export default function ProjectScanPage({
       setPreviewDataUrls({});
       setScannedAssets(parsed.assets);
       setSourceExcerpts(parsed.sourceExcerpts);
+      setPrompt(buildScanStubContext(parsed.folderName, parsed.assets, promptCtx.prompt, promptCtx.platform).prompt);
       setPendingAssets([]);
       setPendingExcerpts({});
       setBriefImported(false);
