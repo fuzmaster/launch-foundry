@@ -210,6 +210,20 @@ a { color: var(--accent); }
   line-height: 1.5;
 }
 
+.finish-modal { max-width: 560px; }
+.finish-modal__copy {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.finish-modal__actions {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
 .toast {
   position: fixed;
   right: 20px;

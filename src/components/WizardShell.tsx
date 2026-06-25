@@ -56,6 +56,7 @@ export default function WizardShell({
 }) {
   const [prefs, setPrefs] = usePreferences();
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
+  const [finishOpen, setFinishOpen] = useState(false);
   // Apply bigText to the document root so every page benefits without
   // each component opting in.
   useEffect(() => {
@@ -84,7 +85,9 @@ export default function WizardShell({
   const currentStep = isWizardStep ? (page as WizardStepKey) : null;
   const currentIdx = currentStep ? WIZARD_STEPS.findIndex(s => s.key === currentStep) : -1;
   const currentStepComplete = currentStep ? stepCompletion[currentStep] : true;
+  const isLastStep = currentIdx === WIZARD_STEPS.length - 1;
   const goNext = () => { if (currentIdx >= 0 && currentIdx < WIZARD_STEPS.length - 1) setPage(WIZARD_STEPS[currentIdx + 1]!.key); };
+  const finish = () => setFinishOpen(true);
   const goPrev = () => { if (currentIdx > 0) setPage(WIZARD_STEPS[currentIdx - 1]!.key); };
 
   const [gearOpen, setGearOpen] = useState(false);
@@ -233,6 +236,28 @@ export default function WizardShell({
         />
       )}
 
+      {finishOpen && (
+        <div className="modal-backdrop" onClick={() => setFinishOpen(false)}>
+          <div className="modal finish-modal" role="dialog" aria-modal="true" aria-labelledby="finish-title" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <strong id="finish-title">Campaign plan is ready</strong>
+              <button type="button" onClick={() => setFinishOpen(false)}>Close</button>
+            </div>
+            <div className="modal-body">
+              <p className="finish-modal__copy">
+                You have a project, campaign concepts, render path, music choice, schedule, and platform plan. Pick what you want to do next.
+              </p>
+              <div className="finish-modal__actions">
+                <button className="primary" type="button" onClick={() => { setPage("build"); setFinishOpen(false); }}>Go render videos</button>
+                <button type="button" onClick={() => { setPage("publishing"); setFinishOpen(false); }}>Review publishing pack</button>
+                <button type="button" onClick={() => { setPage("qa"); setFinishOpen(false); }}>Run QA check</button>
+                <button type="button" onClick={() => { setPage("projects"); setFinishOpen(false); }}>Back to projects</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {currentStep && (
         <footer className="wizard-shell__footer">
           <button type="button" onClick={goPrev} disabled={currentIdx === 0}>
@@ -257,13 +282,15 @@ export default function WizardShell({
           <button
             type="button"
             className="primary"
-            onClick={goNext}
-            disabled={currentIdx === WIZARD_STEPS.length - 1 || !currentStepComplete}
+            onClick={isLastStep ? finish : goNext}
+            disabled={!currentStepComplete}
             title={!currentStepComplete ? "Finish this step before continuing" : undefined}
           >
-            Next: {prefs.simpleMode
-              ? (WIZARD_STEPS[currentIdx + 1]?.plainLabel ?? "Done")
-              : (WIZARD_STEPS[currentIdx + 1]?.label ?? "Done")} →
+            {isLastStep
+              ? "Finish"
+              : `Next: ${prefs.simpleMode
+                ? (WIZARD_STEPS[currentIdx + 1]?.plainLabel ?? "Done")
+                : (WIZARD_STEPS[currentIdx + 1]?.label ?? "Done")} →`}
           </button>
         </footer>
       )}
