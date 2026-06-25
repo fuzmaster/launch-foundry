@@ -12,7 +12,7 @@ import { NoticeDialog } from "../components/ConfirmDialog";
 import { usePreferences } from "../lib/preferences";
 import { buildUrlIntakePrompt, looksLikeUrl, normalizeUrl } from "../lib/urlSource";
 import { getBusinessType } from "../lib/businessTypes";
-import { buildCombinedBriefCampaignPrompt, buildProductDesignBriefPrompt, buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "../lib/auditPrompt";
+import { buildAssetMetadataPowerShell, buildAssetShortlistPrompt, buildCombinedBriefCampaignPrompt, buildProductDesignBriefPrompt, buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "../lib/auditPrompt";
 import { loadState, saveState } from "../lib/storage";
 import type { AssetRole, BrandProfile, CampaignConcept, CampaignPrompt, ProjectAsset } from "../types";
 
@@ -36,6 +36,37 @@ const ROLE_OPTIONS: Array<{ value: AssetRole; label: string }> = [
   { value: "broll", label: "B-roll" },
   { value: "weak", label: "Weak" },
 ];
+
+const ASSET_ROLES = new Set<AssetRole>(["opener", "proof", "endcard", "broll", "weak", "unassigned"]);
+
+function extractJsonBlock(text: string): unknown {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced?.[1]?.trim() || trimmed;
+  return JSON.parse(candidate);
+}
+
+function parseAssetRoleResult(text: string): Array<{ assetId: string; role: AssetRole; reason?: string }> {
+  const parsed = extractJsonBlock(text);
+  if (!parsed || typeof parsed !== "object") return [];
+  const list = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray((parsed as { assetRoles?: unknown }).assetRoles)
+      ? (parsed as { assetRoles: unknown[] }).assetRoles
+      : Array.isArray((parsed as { roles?: unknown }).roles)
+        ? (parsed as { roles: unknown[] }).roles
+        : Array.isArray((parsed as { assets?: unknown }).assets)
+          ? (parsed as { assets: unknown[] }).assets
+          : [];
+
+  return list.flatMap(item => {
+    const record = item as Record<string, unknown>;
+    const assetId = String(record.assetId ?? record.id ?? "").trim();
+    const role = String(record.role ?? "").trim() as AssetRole;
+    if (!assetId || !ASSET_ROLES.has(role)) return [];
+    return [{ assetId, role, reason: typeof record.reason === "string" ? record.reason : undefined }];
+  });
+}
 
 export default function ProjectScanPage({
   assets,
@@ -93,6 +124,11 @@ export default function ProjectScanPage({
   const [exportCopied, setExportCopied] = useState(false);
   const [auditCopied, setAuditCopied] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [assetPromptCopied, setAssetPromptCopied] = useState(false);
+  const [assetMetadataCopied, setAssetMetadataCopied] = useState(false);
+  const [showAssetMetadataCommand, setShowAssetMetadataCommand] = useState(false);
+  const [assetAiText, setAssetAiText] = useState("");
+  const [assetAiFeedback, setAssetAiFeedback] = useState<{ kind: "ok" | "error"; message: string } | null>(null);
   const [aiResultText, setAiResultText] = useState("");
   const [aiImportFeedback, setAiImportFeedback] = useState<
     | { kind: "ok"; summary: string; warnings: string[] }
@@ -131,6 +167,14 @@ export default function ProjectScanPage({
   const combinedBriefCampaignPrompt = useMemo(
     () => buildCombinedBriefCampaignPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets, workingPrompt),
     [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets, workingPrompt]
+  );
+  const assetShortlistPrompt = useMemo(
+    () => buildAssetShortlistPrompt(detectedRoot || promptCtx.brand.projectName, activeAssets, scannedAssets ? sourceExcerpts : {}),
+    [detectedRoot, promptCtx.brand.projectName, activeAssets, scannedAssets, sourceExcerpts]
+  );
+  const assetMetadataCommand = useMemo(
+    () => buildAssetMetadataPowerShell(rootPath.trim() || detectedRoot || "C:\\Sites\\my-project", activeAssets),
+    [rootPath, detectedRoot, activeAssets]
   );
   const isScanMode = !!scannedAssets;
   const excerptCount = Object.keys(sourceExcerpts).length;
@@ -233,6 +277,18 @@ export default function ProjectScanPage({
     setTimeout(() => setAuditCopied(false), 1500);
   };
 
+  const handleCopyAssetPrompt = async () => {
+    try { await copyToClipboard(assetShortlistPrompt); } catch {}
+    setAssetPromptCopied(true);
+    setTimeout(() => setAssetPromptCopied(false), 1500);
+  };
+
+  const handleCopyAssetMetadataCommand = async () => {
+    try { await copyToClipboard(assetMetadataCommand); } catch {}
+    setAssetMetadataCopied(true);
+    setTimeout(() => setAssetMetadataCopied(false), 1500);
+  };
+
   const applyBrandToPrompt = (brand: BrandProfile) => {
     setPrompt({
       ...promptCtx.prompt,
@@ -279,6 +335,41 @@ export default function ProjectScanPage({
       setScannedAssets(scannedAssets.map(a => a.id === id ? { ...a, role: role === "unassigned" ? undefined : role } : a));
     } else {
       updateProjectAssets(assets.map(a => a.id === id ? { ...a, role: role === "unassigned" ? undefined : role } : a));
+    }
+  };
+
+  const applyAssetAiResult = () => {
+    try {
+      const roles = parseAssetRoleResult(assetAiText);
+      if (roles.length === 0) {
+        setAssetAiFeedback({ kind: "error", message: "I could not find any assetRoles with assetId + role. Paste the JSON reply from the asset picker prompt." });
+        return;
+      }
+
+      const roleMap = new Map(roles.map(r => [r.assetId, r.role]));
+      const applyRoles = (list: ProjectAsset[]) =>
+        list.map(asset => {
+          const role = roleMap.get(asset.id);
+          return role ? { ...asset, role: role === "unassigned" ? undefined : role } : asset;
+        });
+
+      const knownIds = new Set(activeAssets.map(a => a.id));
+      const appliedCount = roles.filter(r => knownIds.has(r.assetId)).length;
+      const skippedCount = roles.length - appliedCount;
+
+      if (scannedAssets) {
+        setScannedAssets(applyRoles(scannedAssets));
+      } else {
+        updateProjectAssets(applyRoles(assets));
+      }
+
+      setAssetAiText("");
+      setAssetAiFeedback({
+        kind: "ok",
+        message: `Applied ${appliedCount} asset role${appliedCount === 1 ? "" : "s"}${skippedCount ? ` and skipped ${skippedCount} unknown asset ID${skippedCount === 1 ? "" : "s"}` : ""}.`,
+      });
+    } catch (error) {
+      setAssetAiFeedback({ kind: "error", message: error instanceof Error ? error.message : "That asset picker result was not valid JSON." });
     }
   };
 
@@ -573,6 +664,44 @@ export default function ProjectScanPage({
         title={scannedAssets ? "Scanned assets" : "Project assets"}
         eyebrow={scannedAssets ? `Folder scan · ${Object.keys(previewUrls).length} thumbnails this session` : "Tag each asset's role to sharpen the LLM output"}
       >
+        <div style={{ marginBottom: 16, padding: "16px 18px", border: "1px solid var(--line)", borderRadius: 8 }}>
+          <strong style={{ display: "block", fontSize: 13, color: "var(--accent)", marginBottom: 8 }}>
+            AI asset picker
+          </strong>
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
+            Use this when the asset list feels messy. The prompt asks AI to choose opener, proof, b-roll, end-card, and weak assets. The PowerShell command adds file size and image dimensions when filenames alone are not enough.
+          </p>
+          <div className="button-row" style={{ flexWrap: "wrap" }}>
+            <SendToAI promptText={assetShortlistPrompt} buttonText="Pick best assets" size="compact" />
+            <button onClick={handleCopyAssetPrompt}>{assetPromptCopied ? "✓ Copied" : "Copy asset prompt"}</button>
+            <button onClick={() => downloadText("launchfoundry-asset-picker-prompt.md", assetShortlistPrompt)}>Download prompt</button>
+            <button onClick={handleCopyAssetMetadataCommand}>{assetMetadataCopied ? "✓ Copied" : "Copy metadata command"}</button>
+            <button onClick={() => downloadText("launchfoundry-asset-metadata.ps1", assetMetadataCommand)}>Download .ps1</button>
+            <button onClick={() => setShowAssetMetadataCommand(v => !v)}>{showAssetMetadataCommand ? "Hide command" : "Show command"}</button>
+          </div>
+          {showAssetMetadataCommand && (
+            <pre style={{ marginTop: 12, maxHeight: 300, overflow: "auto", background: "rgba(0,0,0,0.25)", padding: 12, borderRadius: 6, fontSize: 12, whiteSpace: "pre-wrap" }}>
+              {assetMetadataCommand}
+            </pre>
+          )}
+          <textarea
+            value={assetAiText}
+            onChange={e => setAssetAiText(e.target.value)}
+            rows={6}
+            placeholder='{ "assetRoles": [{ "assetId": "asset-1", "role": "opener", "reason": "Strong first visual", "confidence": 8 }] }'
+            style={{ marginTop: 12, fontFamily: "var(--mono)", fontSize: 12 }}
+          />
+          <div className="button-row" style={{ marginTop: 10 }}>
+            <button className="primary" onClick={applyAssetAiResult} disabled={!assetAiText.trim()}>
+              Apply asset choices
+            </button>
+          </div>
+          {assetAiFeedback && (
+            <div className={`inline-feedback inline-feedback--${assetAiFeedback.kind}`}>
+              {assetAiFeedback.message}
+            </div>
+          )}
+        </div>
         <div className="asset-grid">
           {activeAssets.map(asset => {
             const preview = previewUrls[asset.id] ?? previewDataUrls[asset.id];

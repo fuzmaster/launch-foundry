@@ -5,7 +5,7 @@ import { runQA } from "./qa";
 import { renderPublishingPack } from "./templateUtils";
 import { loadState, saveState } from "./storage";
 import { parseCodeReview } from "./codeReviewParser";
-import { buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "./auditPrompt";
+import { buildAssetMetadataPowerShell, buildAssetShortlistPrompt, buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "./auditPrompt";
 import { importCampaignJson } from "./importCampaign";
 
 const brand: BrandProfile = {
@@ -149,6 +149,18 @@ describe("project review imports", () => {
     expect(command).toContain("<project_files>");
     expect(prompt).toContain("Audit this website/application");
     expect(prompt).toContain("Demo Site");
+  });
+
+  it("builds asset picker prompts and metadata commands", () => {
+    const prompt = buildAssetShortlistPrompt("Demo Site", assets, { "README.md": "# Demo" });
+    const command = buildAssetMetadataPowerShell("C:\\Sites\\demo-site", assets);
+
+    expect(prompt).toContain("Pick the assets most likely");
+    expect(prompt).toContain('"assetId": ""');
+    expect(prompt).toContain('"asset-1"');
+    expect(command).toContain("LAUNCHFOUNDRY ASSET METADATA EXPORT");
+    expect(command).toContain("$projectRoot = \"C:\\Sites\\demo-site\"");
+    expect(command).toContain('"asset-1"');
   });
 });
 

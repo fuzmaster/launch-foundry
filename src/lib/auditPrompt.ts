@@ -159,6 +159,159 @@ Context inventory:
 Do not invent facts. Use empty strings or empty arrays where the code does not provide enough evidence.`;
 }
 
+function summarizeAsset(asset: ProjectAsset) {
+  return {
+    id: asset.id,
+    filename: asset.filename,
+    path: asset.path,
+    type: asset.type,
+    width: asset.width,
+    height: asset.height,
+    durationSeconds: asset.durationSeconds,
+    tags: asset.tags,
+    currentRole: asset.role ?? "unassigned",
+    notes: asset.notes,
+  };
+}
+
+export function buildAssetMetadataPowerShell(projectRoot: string, assets: ProjectAsset[]): string {
+  const outputName = `${(projectRoot.split(/[\\/]/).filter(Boolean).pop() || "launchfoundry").replace(/[^a-z0-9_-]/gi, "-")}-asset-metadata.json`;
+  const output = `C:\\Users\\$env:USERNAME\\Downloads\\${outputName}`;
+  const assetList = assets.map(a => ({
+    id: a.id,
+    filename: a.filename,
+    path: a.path,
+    type: a.type,
+    tags: a.tags,
+    currentRole: a.role ?? "unassigned",
+  }));
+
+  return `# LAUNCHFOUNDRY ASSET METADATA EXPORT
+# Run this after a folder scan when you want AI to choose the strongest visuals.
+
+$projectRoot = "${projectRoot || "C:\\Sites\\my-project"}"
+$output = "${output}"
+
+$assetsJson = @'
+${JSON.stringify(assetList, null, 2)}
+'@
+
+$assets = $assetsJson | ConvertFrom-Json
+$projectRoot = (Get-Item -LiteralPath $projectRoot -ErrorAction SilentlyContinue).FullName
+Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
+
+$results = foreach ($asset in $assets) {
+  $assetPath = [string]$asset.path
+  if ($projectRoot -and -not [System.IO.Path]::IsPathRooted($assetPath)) {
+    $assetPath = Join-Path $projectRoot $assetPath
+  }
+
+  if (-not (Test-Path -LiteralPath $assetPath)) {
+    [pscustomobject]@{
+      id = $asset.id
+      filename = $asset.filename
+      path = $asset.path
+      type = $asset.type
+      exists = $false
+      reason = "File not found at resolved path"
+      tags = $asset.tags
+      currentRole = $asset.currentRole
+    }
+    continue
+  }
+
+  $item = Get-Item -LiteralPath $assetPath
+  $width = $null
+  $height = $null
+  if ($asset.type -in @("image", "logo", "screenshot")) {
+    try {
+      $img = [System.Drawing.Image]::FromFile($item.FullName)
+      $width = $img.Width
+      $height = $img.Height
+      $img.Dispose()
+    } catch {}
+  }
+
+  [pscustomobject]@{
+    id = $asset.id
+    filename = $asset.filename
+    path = $item.FullName
+    type = $asset.type
+    exists = $true
+    extension = $item.Extension
+    sizeBytes = $item.Length
+    lastWriteTime = $item.LastWriteTime.ToString("s")
+    width = $width
+    height = $height
+    tags = $asset.tags
+    currentRole = $asset.currentRole
+  }
+}
+
+$results | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $output -Encoding UTF8
+Write-Host "LaunchFoundry asset metadata created: $output"
+Write-Host "Assets checked: $($assets.Count)"`;
+}
+
+export function buildAssetShortlistPrompt(projectName: string, assets: ProjectAsset[], sourceExcerpts: Record<string, string> = {}): string {
+  return `You are helping LaunchFoundry choose the best assets from an uploaded website/app scan.
+
+Goal:
+Pick the assets most likely to make good campaign videos and social posts. Focus on visual clarity, proof, relevance to the product/service, and whether the asset can support a 9:16 short-form video.
+
+Project: ${projectName || "Uploaded website/app"}
+
+Asset roles:
+- opener: the strongest first visual or first 1-3 seconds.
+- proof: evidence, before/after, product result, UI result, testimonial screenshot, real work.
+- broll: useful supporting visuals, process shots, secondary UI, detail shots.
+- endcard: logo, brand mark, contact card, strong final frame.
+- weak: duplicate, tiny, blurry, generic, irrelevant, or not useful for a campaign.
+
+Return only valid JSON in this shape:
+
+{
+  "assetRoles": [
+    {
+      "assetId": "",
+      "role": "opener|proof|broll|endcard|weak",
+      "reason": "",
+      "confidence": 0
+    }
+  ],
+  "recommendedSceneAssets": [
+    {
+      "sceneId": "s1",
+      "assetIds": [],
+      "reason": ""
+    }
+  ],
+  "missingAssets": [],
+  "notes": []
+}
+
+Rules:
+- Use only asset IDs from the inventory below.
+- Mark at least one opener if there is any usable image, video, logo, or screenshot.
+- Mark at least two proof assets if they exist.
+- Mark logos or clean brand cards as endcard, not proof.
+- Mark code files, tiny icons, broken files, duplicates, and unrelated assets as weak.
+- If you cannot inspect pixels, use filename, path, type, tags, dimensions, and metadata to make the best conservative choice.
+- If the user pasted PowerShell metadata below the inventory, use it to prefer larger, sharper assets.
+- Do not invent asset IDs.
+
+Context inventory:
+- ${assets.length} assets detected.
+- Source excerpts available: ${Object.keys(sourceExcerpts).join(", ") || "none"}.
+
+Asset inventory:
+\`\`\`json
+${JSON.stringify(assets.map(summarizeAsset), null, 2)}
+\`\`\`
+
+Optional: if available, also consider pasted LaunchFoundry asset metadata JSON from the PowerShell command.`;
+}
+
 export function buildCombinedBriefCampaignPrompt(
   projectName: string,
   sourceExcerpts: Record<string, string>,
