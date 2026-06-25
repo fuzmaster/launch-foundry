@@ -11,6 +11,7 @@ import { NoticeDialog } from "../components/ConfirmDialog";
 import { usePreferences } from "../lib/preferences";
 import { buildUrlIntakePrompt, looksLikeUrl, normalizeUrl } from "../lib/urlSource";
 import { getBusinessType } from "../lib/businessTypes";
+import { buildProductDesignBriefPrompt, buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "../lib/auditPrompt";
 import type { AssetRole, ProjectAsset } from "../types";
 
 function downloadText(filename: string, text: string) {
@@ -78,6 +79,9 @@ export default function ProjectScanPage({
   const [pendingExcerpts, setPendingExcerpts] = useState<Record<string, string>>({});
   const [skippedCount, setSkippedCount] = useState(0);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [showExportCommand, setShowExportCommand] = useState(false);
+  const [exportCopied, setExportCopied] = useState(false);
+  const [auditCopied, setAuditCopied] = useState(false);
   const [copied, setCopied] = useState(false);
   const [previewAssetId, setPreviewAssetId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
@@ -94,6 +98,15 @@ export default function ProjectScanPage({
   const intakePrompt = useMemo(
     () => renderMegaPrompt(intakeCtx, scannedAssets ? sourceExcerpts : undefined),
     [intakeCtx, scannedAssets, sourceExcerpts]
+  );
+  const exportCommand = useMemo(() => buildProjectExportPowerShell(rootPath.trim() || undefined), [rootPath]);
+  const auditPrompt = useMemo(
+    () => buildWebsiteAuditPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets),
+    [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets]
+  );
+  const designBriefPrompt = useMemo(
+    () => buildProductDesignBriefPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets),
+    [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets]
   );
   const isScanMode = !!scannedAssets;
   const excerptCount = Object.keys(sourceExcerpts).length;
@@ -153,6 +166,18 @@ export default function ProjectScanPage({
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const handleCopyExportCommand = async () => {
+    try { await copyToClipboard(exportCommand); } catch {}
+    setExportCopied(true);
+    setTimeout(() => setExportCopied(false), 1500);
+  };
+
+  const handleCopyAuditPrompt = async () => {
+    try { await copyToClipboard(auditPrompt); } catch {}
+    setAuditCopied(true);
+    setTimeout(() => setAuditCopied(false), 1500);
+  };
+
   // Updating a role goes either to the active scan list or directly to the project's asset list.
   const setAssetRole = (id: string, role: AssetRole) => {
     if (scannedAssets) {
@@ -180,7 +205,7 @@ export default function ProjectScanPage({
         <BusinessTypePicker />
       </Card>
 
-      <Card title={prefs.simpleMode ? "2 · Bring in your files" : "2 · Scan a folder"} eyebrow={prefs.simpleMode ? "Folder, code-review .txt, or URL (URL coming)" : "Live folder pick"}>
+      <Card title={prefs.simpleMode ? "2 · Bring in your files" : "2 · Scan a folder"} eyebrow={prefs.simpleMode ? "Folder, project export, or URL" : "Live folder pick / AI review pack"}>
         <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--muted)" }}>
           Pick a project folder under <code>C:\Sites</code>. Browsers don't expose absolute paths to web pages, so paste the absolute root below if you want the reels-bridge to know where files live on disk.
         </p>
@@ -214,6 +239,25 @@ export default function ProjectScanPage({
           onChange={e => handleFolderPick(e.target.files)}
         />
 
+        <div style={{ marginTop: 14, padding: "16px 18px", border: "1px solid var(--line)", borderRadius: 8 }}>
+          <strong style={{ display: "block", fontSize: 13, color: "var(--accent)", marginBottom: 8 }}>
+            …or make an AI review pack from PowerShell
+          </strong>
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
+            Use this when the browser folder picker misses context. Paste your project path above, copy this command into PowerShell, then upload the XML file it creates from Downloads.
+          </p>
+          <div className="button-row" style={{ flexWrap: "wrap" }}>
+            <button onClick={handleCopyExportCommand}>{exportCopied ? "✓ Copied" : "Copy PowerShell command"}</button>
+            <button onClick={() => downloadText("launchfoundry-ai-review-pack-export.ps1", exportCommand)}>Download .ps1</button>
+            <button onClick={() => setShowExportCommand(v => !v)}>{showExportCommand ? "Hide" : "Show command"}</button>
+          </div>
+          {showExportCommand && (
+            <pre style={{ marginTop: 12, maxHeight: 360, overflow: "auto", background: "rgba(0,0,0,0.25)", padding: 12, borderRadius: 6, fontSize: 12, whiteSpace: "pre-wrap" }}>
+              {exportCommand}
+            </pre>
+          )}
+        </div>
+
         {/* Alternate source: a code-review text dump. Same pipeline; useful
             when you have a Claude export instead of the actual project folder. */}
         <div
@@ -245,7 +289,7 @@ export default function ProjectScanPage({
               …or drop a code-review text file
             </strong>
             <span style={{ fontSize: 12, color: "var(--muted)" }}>
-              Concatenated source dumps (<code style={{ fontSize: 11 }}>===== FILE: path =====</code>) — Claude review exports, repo flatteners. README/package/index.html excerpts feed the intake prompt the same way a folder scan does.
+              Upload <code style={{ fontSize: 11 }}>===== FILE: path =====</code> dumps or XML review packs from the PowerShell command above. README/package/index.html excerpts feed the intake prompt the same way a folder scan does.
             </span>
           </span>
         </div>
@@ -302,7 +346,25 @@ export default function ProjectScanPage({
 
       {activeAssets.length > 0 && (
         <Card
-          title="3 · Generate the intake prompt"
+          title="3 · Ask AI to understand this website"
+          eyebrow="Audit / product-design brief"
+          action={
+            <div className="button-row">
+              <SendToAI promptText={designBriefPrompt} buttonText="Make product brief" />
+              <button onClick={handleCopyAuditPrompt}>{auditCopied ? "✓ Copied" : "Copy audit prompt"}</button>
+              <button onClick={() => downloadText("launchfoundry-website-audit-prompt.md", auditPrompt)}>Download audit prompt</button>
+            </div>
+          }
+        >
+          <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>
+            This is the testing prompt for an uploaded website/code pack. Send the brief prompt to an AI bot, paste the code-review/export file into the same chat, and ask it to return a structured product/design brief LaunchFoundry can use for better strategy, ads, and QA.
+          </p>
+        </Card>
+      )}
+
+      {activeAssets.length > 0 && (
+        <Card
+          title="4 · Generate the intake prompt"
           eyebrow="Mega prompt from this scan"
           action={
             <div className="button-row">

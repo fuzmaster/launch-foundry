@@ -4,6 +4,8 @@ import { createRenderSpecFromConcept } from "./renderSpec";
 import { runQA } from "./qa";
 import { renderPublishingPack } from "./templateUtils";
 import { loadState, saveState } from "./storage";
+import { parseCodeReview } from "./codeReviewParser";
+import { buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "./auditPrompt";
 
 const brand: BrandProfile = {
   projectName: "Test Shop",
@@ -122,5 +124,29 @@ describe("storage helpers", () => {
     expect(() => saveState("full", { ok: true })).not.toThrow();
 
     vi.unstubAllGlobals();
+  });
+});
+
+describe("project review imports", () => {
+  it("parses XML review packs from the PowerShell exporter", () => {
+    const parsed = parseCodeReview(`<project_files>
+  <file path="package.json"><![CDATA[{"name":"demo-site"}]]></file>
+  <file path="src/App.tsx"><![CDATA[export default function App(){ return <main /> }]]></file>
+</project_files>`, "demo-site.xml");
+
+    expect(parsed.totalFiles).toBe(2);
+    expect(parsed.folderName).toBe("demo-site");
+    expect(parsed.assets.map(a => a.path)).toContain("src/App.tsx");
+    expect(parsed.sourceExcerpts["package.json"]).toContain("demo-site");
+  });
+
+  it("builds a PowerShell export command and website audit prompt", () => {
+    const command = buildProjectExportPowerShell("C:\\Sites\\demo-site", "C:\\Users\\me\\Downloads\\demo-site.xml");
+    const prompt = buildWebsiteAuditPrompt("Demo Site", { "package.json": "{}" }, assets);
+
+    expect(command).toContain("$projectRoot = \"C:\\Sites\\demo-site\"");
+    expect(command).toContain("<project_files>");
+    expect(prompt).toContain("Audit this website/application");
+    expect(prompt).toContain("Demo Site");
   });
 });

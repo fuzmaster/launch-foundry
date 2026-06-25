@@ -98,6 +98,30 @@ function splitDump(text: string): Array<{ path: string; content: string }> {
   return blocks;
 }
 
+function decodeXmlEntities(value: string): string {
+  return value
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+/** Split the XML export produced by the in-app PowerShell command:
+ *  `<file path="src/App.tsx"><![CDATA[...]]></file>`. */
+function splitXmlDump(text: string): Array<{ path: string; content: string }> {
+  const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
+  const re = /<file\s+path=(["'])(.*?)\1\s*>\s*(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))\s*<\/file>/gi;
+  const blocks: Array<{ path: string; content: string }> = [];
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(normalized)) !== null) {
+    const path = decodeXmlEntities(match[2]!.trim());
+    const content = match[3] ?? decodeXmlEntities(match[4] ?? "");
+    blocks.push({ path, content: content.replace(/^\n+/, "").replace(/\n+$/, "") });
+  }
+  return blocks;
+}
+
 /** Generic source-tree folder names that don't identify a project. If the
  *  most-common first segment is one of these, we fall back to the dump's
  *  filename (which usually does identify the project). */
@@ -138,7 +162,8 @@ function deriveNameFromFilename(filename: string | undefined): string | null {
 }
 
 export function parseCodeReview(text: string, dumpFilename?: string): ParsedCodeReview {
-  const blocks = splitDump(text);
+  const markerBlocks = splitDump(text);
+  const blocks = markerBlocks.length > 0 ? markerBlocks : splitXmlDump(text);
   if (blocks.length === 0) {
     return { folderName: deriveNameFromFilename(dumpFilename) ?? "review", assets: [], sourceExcerpts: {}, skippedCount: 0, totalFiles: 0 };
   }
