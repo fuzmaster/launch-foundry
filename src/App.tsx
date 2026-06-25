@@ -266,9 +266,7 @@ export default function App() {
     research:  hasConcepts,
     concepts:  hasConcepts && !!selectedId,
     build:     hasConcepts,                          // user can render at any time once concepts exist
-    music:     loadState<"with_music" | "no_music">("launchfoundry.music.mode", "with_music") === "no_music" || !!loadState("launchfoundry.music.dropped", null),
     schedule:  loadState<string[]>("launchfoundry.schedule.platforms", []).length > 0 && !!loadState<string>("launchfoundry.schedule.start", ""),
-    platforms: loadState<string[]>("launchfoundry.platforms.composerPlatforms", []).length > 0 || !!loadState("launchfoundry.platforms.recResult", null),
   };
 
   return (

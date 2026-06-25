@@ -11,18 +11,16 @@ import { usePreferences } from "../lib/preferences";
 import AskForHelp from "./AskForHelp";
 import { speak, stopSpeaking, ttsAvailable } from "../lib/voice";
 
-export type WizardStepKey = "project" | "research" | "concepts" | "build" | "music" | "schedule" | "platforms";
-export type SecondaryPageKey = "projects" | "brand" | "strategy" | "storyboard" | "renderspec" | "publishing" | "qa" | "prompts";
+export type WizardStepKey = "project" | "research" | "concepts" | "build" | "schedule";
+export type SecondaryPageKey = "projects" | "brand" | "strategy" | "storyboard" | "renderspec" | "publishing" | "qa" | "prompts" | "music" | "platforms";
 export type AnyPageKey = WizardStepKey | SecondaryPageKey;
 
 export const WIZARD_STEPS: { key: WizardStepKey; num: number; label: string; plainLabel: string; tagline: string }[] = [
-  { key: "project",   num: 1, label: "Project",   plainLabel: "What are we promoting?", tagline: "Drop your project folder, paste a website URL, or upload a code-review file" },
-  { key: "research",  num: 2, label: "Research",  plainLabel: "Tell me about it",       tagline: "Send a prompt to ChatGPT or Claude, paste the answer back here" },
-  { key: "concepts",  num: 3, label: "Concepts",  plainLabel: "Pick the videos",         tagline: "Choose which video ads to actually make" },
-  { key: "build",     num: 4, label: "Build",     plainLabel: "Make the videos",         tagline: "Live preview + render to MP4" },
-  { key: "music",     num: 5, label: "Music",     plainLabel: "Add music",               tagline: "Find a soundtrack — optional" },
-  { key: "schedule",  num: 6, label: "Schedule",  plainLabel: "When to post",            tagline: "Calendar export for posting" },
-  { key: "platforms", num: 7, label: "Platforms", plainLabel: "Where to post",           tagline: "Per-platform posts + setup briefs" },
+  { key: "project",   num: 1, label: "Add Stuff",   plainLabel: "Add your stuff",       tagline: "Give LaunchFoundry your website, folder, photos, or videos" },
+  { key: "research",  num: 2, label: "AI Sorts",    plainLabel: "Let AI sort it",       tagline: "Ask AI to read everything and tell us what matters" },
+  { key: "concepts",  num: 3, label: "Pick Videos", plainLabel: "Pick the best videos", tagline: "Choose the ideas you actually want to make" },
+  { key: "build",     num: 4, label: "Make",        plainLabel: "Make the videos",      tagline: "Preview the video and render it when it looks right" },
+  { key: "schedule",  num: 5, label: "Post",        plainLabel: "Post it",              tagline: "Choose where and when the finished videos should go" },
 ];
 
 const SECONDARY_PAGES: { key: SecondaryPageKey; label: string; group: "Project" | "Campaign" | "Reference" }[] = [
@@ -33,6 +31,8 @@ const SECONDARY_PAGES: { key: SecondaryPageKey; label: string; group: "Project" 
   { key: "renderspec", label: "Render spec (advanced)", group: "Campaign" },
   { key: "publishing", label: "Publishing pack",  group: "Campaign" },
   { key: "qa",         label: "QA check",         group: "Campaign" },
+  { key: "platforms",  label: "Platform captions", group: "Campaign" },
+  { key: "music",      label: "Music choice",     group: "Campaign" },
   { key: "prompts",    label: "Prompt pack",      group: "Reference" },
 ];
 
@@ -109,6 +109,13 @@ export default function WizardShell({
   const projectName = scanActive
     ? scanLabel
     : (project.brand.businessName ?? project.label);
+  const recipeItems = [
+    { label: "Project files", done: stepCompletion.project, hint: scanActive ? "Folder loaded" : "Ready to add" },
+    { label: "AI notes", done: stepCompletion.research, hint: "Brief + ideas" },
+    { label: "Video picks", done: stepCompletion.concepts, hint: "Concepts chosen" },
+    { label: "Video draft", done: stepCompletion.build, hint: "Preview ready" },
+    { label: "Posting plan", done: stepCompletion.schedule, hint: "Calendar ready" },
+  ];
 
   return (
     <div className="wizard-shell">
@@ -220,7 +227,25 @@ export default function WizardShell({
         </nav>
       </header>
 
-      <main className="wizard-shell__main">{children}</main>
+      <main className="wizard-shell__main">
+        <aside className="recipe-panel" aria-label="Your recipe">
+          <span className="recipe-panel__label">Your Recipe</span>
+          <strong>{projectName}</strong>
+          <p>Follow these boxes in order. Green means that part is ready.</p>
+          <div className="recipe-panel__list">
+            {recipeItems.map(item => (
+              <div key={item.label} className={"recipe-panel__item" + (item.done ? " recipe-panel__item--done" : "")}>
+                <span>{item.done ? "✓" : "○"}</span>
+                <div>
+                  <b>{item.label}</b>
+                  <small>{item.hint}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+        <section className="wizard-shell__content">{children}</section>
+      </main>
 
       {storageWarning && (
         <div className="toast toast--warning" role="status">

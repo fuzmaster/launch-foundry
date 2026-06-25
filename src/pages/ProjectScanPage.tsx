@@ -381,32 +381,32 @@ export default function ProjectScanPage({
 
   return (
     <div className="page">
-      <h1>{prefs.simpleMode ? "What are we promoting?" : "Project Scan"}</h1>
+      <h1>{prefs.simpleMode ? "Add your stuff" : "Project Scan"}</h1>
       <p className="lede">
         {prefs.simpleMode
-          ? "Start by telling me what kind of business this is. Then drop a folder, paste a website URL, or upload a code-review file — whichever you have."
-          : "Start here. Pick a folder, then generate one intake prompt that captures everything the rest of the pipeline needs. Click any image to see the full-resolution version; tag assets with their role so the prompt knows what's an opener vs. proof vs. end card."}
+          ? "Give LaunchFoundry the website, folder, photos, or videos. Then it makes a simple sheet AI can read and helps pick the best pieces for reels."
+          : "Start here. Add your project context, create an asset review sheet, then use AI to pick the visuals and facts worth turning into campaign content."}
       </p>
 
-      <Card title="Plain-English map" eyebrow="What these words mean">
+      <Card title="How this works" eyebrow="Simple map">
         <div className="term-grid">
-          <div><strong>Import files</strong><span>Bring in a folder, website URL, or AI review pack.</span></div>
-          <div><strong>Review pack</strong><span>A text/XML copy of project files that an AI bot can read.</span></div>
-          <div><strong>Product brief</strong><span>A summary of what the website/app is, who it serves, and what to market.</span></div>
-          <div><strong>Campaign prompt</strong><span>The final prompt that asks AI for ads, storyboards, captions, and QA.</span></div>
+          <div><strong>1. Add stuff</strong><span>Bring in a website, folder, photos, videos, or a review file.</span></div>
+          <div><strong>2. Make a picture sheet</strong><span>PowerShell makes a PDF/HTML contact sheet AI can look at.</span></div>
+          <div><strong>3. Let AI sort it</strong><span>AI picks the best openers, proof shots, clips, and useful code facts.</span></div>
+          <div><strong>4. Make videos</strong><span>You approve the ideas, then LaunchFoundry helps build and post them.</span></div>
         </div>
       </Card>
 
-      <Card title="1 · What kind of business?" eyebrow="Picks a sensible style for everything that follows">
+      <Card title="1 · Pick the closest business type" eyebrow="This sets the style">
         <p className="helper-copy">
           This choice tunes the voice, examples, campaign angles, and platform suggestions. Pick the closest fit; you can change it later.
         </p>
         <BusinessTypePicker />
       </Card>
 
-      <Card title={prefs.simpleMode ? "2 · Import website or project context" : "2 · Import files"} eyebrow={prefs.simpleMode ? "Folder, project export, or URL" : "Folder / URL / AI review pack"}>
+      <Card title={prefs.simpleMode ? "2 · Add your website, folder, or files" : "2 · Import files"} eyebrow={prefs.simpleMode ? "Choose one starting point" : "Folder / URL / AI review pack"}>
         <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--muted)" }}>
-          Choose one source. Folder upload is easiest. The AI review pack is best when you want ChatGPT or Claude to read code context. The website URL path is best when you only have a live site.
+          Choose one source. Folder upload is easiest. Use the PowerShell review command when you want AI to inspect images, assets, and important project files more carefully.
         </p>
         <label>
           Project folder path (optional, helps PowerShell and render scripts find files)
@@ -446,7 +446,7 @@ export default function ProjectScanPage({
 
         <div style={{ marginTop: 14, padding: "16px 18px", border: "1px solid var(--line)", borderRadius: 8 }}>
           <strong style={{ display: "block", fontSize: 13, color: "var(--accent)", marginBottom: 8 }}>
-            …or make an AI review pack from PowerShell
+            ...or make a code review file from PowerShell
           </strong>
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
             Use this when the browser folder picker misses context. Paste your project path above, copy this command into PowerShell, then upload the XML file it creates from Downloads.
@@ -491,7 +491,7 @@ export default function ProjectScanPage({
           <span style={{ fontSize: 22 }}>📄</span>
           <span style={{ flex: 1 }}>
             <strong style={{ display: "block", fontSize: 13, color: "var(--accent)" }}>
-              …or drop a code-review text file
+              ...or drop a code-review text file
             </strong>
             <span style={{ fontSize: 12, color: "var(--muted)" }}>
               Upload <code style={{ fontSize: 11 }}>===== FILE: path =====</code> dumps or XML review packs from the PowerShell command above. README/package/index.html excerpts feed the intake prompt the same way a folder scan does.
@@ -512,7 +512,7 @@ export default function ProjectScanPage({
         {/* H-12 — third source: paste a website URL */}
         <div style={{ marginTop: 14, padding: "16px 18px", border: "1px solid var(--line)", borderRadius: 8 }}>
           <strong style={{ display: "block", fontSize: 13, color: "var(--accent)", marginBottom: 8 }}>
-            …or paste your website address
+            ...or paste your website address
           </strong>
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
             We'll write a prompt that asks ChatGPT or Claude to go look at your website and tell us what we need. No folder, no upload — just a URL.
@@ -551,7 +551,7 @@ export default function ProjectScanPage({
 
       {activeAssets.length > 0 && (
         <Card
-          title="3 · Understand this website"
+          title="3 · Ask AI what this project is"
           eyebrow="Required before campaign generation"
           action={
             <div className="button-row">
@@ -563,7 +563,7 @@ export default function ProjectScanPage({
           }
         >
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>
-            Send the product brief prompt to an AI bot, paste the project review pack into the same chat, then paste the JSON result below. LaunchFoundry will update the brand profile and prefill the campaign input automatically.
+            Send this to an AI bot with your project files. Paste the JSON answer below. LaunchFoundry will fill in the product, audience, offer, tone, and campaign ideas.
           </p>
           <textarea
             value={aiResultText}
@@ -598,7 +598,7 @@ export default function ProjectScanPage({
 
       {activeAssets.length > 0 && (
         <Card
-          title="4 · Generate campaign plan"
+          title="4 · Make campaign ideas"
           eyebrow={briefImported ? "Unlocked" : "Locked until Step 3 is imported"}
           action={
             briefImported ? (
@@ -617,12 +617,12 @@ export default function ProjectScanPage({
         >
           {!briefImported && (
             <div className="locked-step">
-              Import the Step 3 product brief first. That gives this campaign prompt the right product, audience, offer, tone, and CTA.
+              Paste the Step 3 AI answer first. That gives this campaign prompt the right product, audience, offer, tone, and CTA.
             </div>
           )}
           {briefImported && (
             <p className="helper-copy">
-              This prompt now uses the imported Step 3 brief. If the AI returns full campaign JSON, paste it back into the Step 3 box above.
+              This prompt now uses the Step 3 answer. If AI returns full campaign JSON, paste it back into the Step 3 box above.
             </p>
           )}
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>
@@ -662,12 +662,12 @@ export default function ProjectScanPage({
       </div>
 
       <Card
-        title={scannedAssets ? "Scanned assets" : "Project assets"}
+        title={scannedAssets ? "Your scanned stuff" : "Project assets"}
         eyebrow={scannedAssets ? `Folder scan · ${Object.keys(previewUrls).length} thumbnails this session` : "Tag each asset's role to sharpen the LLM output"}
       >
         <div style={{ marginBottom: 16, padding: "16px 18px", border: "1px solid var(--line)", borderRadius: 8 }}>
           <strong style={{ display: "block", fontSize: 13, color: "var(--accent)", marginBottom: 8 }}>
-            AI asset picker
+            AI asset helper
           </strong>
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
             Use this when the asset list feels messy. First run the PowerShell review command. It creates JSON plus an image contact sheet PDF/HTML, then the AI picker can choose opener, proof, b-roll, end-card, code facts, and image-generation references.
