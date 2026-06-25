@@ -145,6 +145,37 @@ a { color: var(--accent); }
 }
 .next-step-callout button { flex: 0 0 auto; }
 
+.inline-feedback {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--line2);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.inline-feedback ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+.inline-feedback--ok {
+  background: rgba(123, 232, 137, 0.10);
+  border-left-color: #7be889;
+}
+.inline-feedback--error {
+  background: rgba(201, 122, 74, 0.12);
+  border-left-color: var(--danger);
+}
+.locked-step {
+  margin: 0 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text-soft);
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
 .toast {
   position: fixed;
   right: 20px;

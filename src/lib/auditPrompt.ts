@@ -1,4 +1,4 @@
-import type { ProjectAsset } from "../types";
+import type { CampaignPrompt, ProjectAsset } from "../types";
 
 const DEFAULT_PROJECT_ROOT = "C:\\Sites\\my-project";
 const DEFAULT_OUTPUT = "C:\\Users\\$env:USERNAME\\Downloads\\my-project-ai-review-pack.xml";
@@ -157,4 +157,102 @@ Context inventory:
 - Source excerpts available: ${Object.keys(sourceExcerpts).join(", ") || "none"}.
 
 Do not invent facts. Use empty strings or empty arrays where the code does not provide enough evidence.`;
+}
+
+export function buildCombinedBriefCampaignPrompt(
+  projectName: string,
+  sourceExcerpts: Record<string, string>,
+  assets: ProjectAsset[],
+  prompt: CampaignPrompt
+): string {
+  return `You are helping LaunchFoundry understand an uploaded website/app and immediately turn it into campaign ideas.
+
+Read the attached project/code context. First infer the product/design brief. Then create three marketing campaign concepts using only supported facts from the code, README, visible UI text, metadata, and assets.
+
+Project: ${projectName || "Uploaded website/app"}
+
+Campaign goal:
+${prompt.goal || "Create a practical launch campaign for this project."}
+
+Target platform: ${prompt.platform}
+Audience hint: ${prompt.audienceHint || "infer from the project"}
+Tone hint: ${prompt.toneHint || "infer from the project"}
+Offer hint: ${prompt.offerHint || "infer from the project"}
+
+Return only valid JSON in this shape:
+
+{
+  "brand": {
+    "projectName": "",
+    "businessName": "",
+    "websiteUrl": "",
+    "category": "",
+    "oneLiner": "",
+    "offerSummary": "",
+    "targetCustomer": "",
+    "tone": "",
+    "colors": [],
+    "fonts": [],
+    "proofPoints": [],
+    "differentiators": [],
+    "avoidClaims": [],
+    "cta": ""
+  },
+  "concepts": [
+    {
+      "id": "concept-1",
+      "title": "",
+      "platform": "${prompt.platform}",
+      "targetAudience": "",
+      "angle": "",
+      "hook": "",
+      "promise": "",
+      "format": "",
+      "durationSeconds": 15,
+      "scenes": [
+        {
+          "id": "s1",
+          "startSecond": 0,
+          "endSecond": 3,
+          "visual": "",
+          "assetIds": [],
+          "textOverlay": "",
+          "voiceover": "",
+          "motionNotes": ""
+        }
+      ],
+      "recommendedAssets": [],
+      "missingAssets": [],
+      "caption": "",
+      "cta": "",
+      "score": {
+        "audienceFit": 0,
+        "platformFit": 0,
+        "assetFit": 0,
+        "clarity": 0,
+        "effort": 0,
+        "total": 0,
+        "reason": ""
+      }
+    }
+  ],
+  "recommendation": "",
+  "productBriefNotes": {
+    "mainUserJourney": [],
+    "keyScreensOrPages": [],
+    "visibleFeatures": [],
+    "risksOrMissingContext": [],
+    "recommendedAssetsToCollect": []
+  }
+}
+
+Rules:
+- Return exactly three concepts.
+- Use asset IDs from the provided context when useful.
+- Do not invent pricing, guarantees, certifications, testimonials, or proof.
+- If a fact is unclear, put it in risksOrMissingContext instead of guessing.
+
+Context inventory:
+- ${assets.length} files/assets detected.
+- Source excerpts available: ${Object.keys(sourceExcerpts).join(", ") || "none"}.`;
 }

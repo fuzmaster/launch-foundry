@@ -305,6 +305,10 @@ export default function App() {
           setPreviewUrls={setPreviewUrls}
           previewDataUrls={previewDataUrls}
           setPreviewDataUrls={setPreviewDataUrls}
+          setBrand={setBrand}
+          setPrompt={setPrompt}
+          setImportedConcepts={setImportedConcepts}
+          setSelectedConceptId={setSelectedId}
           promptCtx={promptCtx}
           goToCampaignPrompt={() => setPage("research")}
           goToProjects={() => setPage("projects")}

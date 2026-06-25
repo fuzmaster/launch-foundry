@@ -5,14 +5,16 @@ import { renderMegaPrompt, type PromptContext } from "../lib/prompts";
 import { buildScanStubContext } from "../lib/scanContext";
 import { copyToClipboard } from "../lib/templateUtils";
 import { parseCodeReview } from "../lib/codeReviewParser";
+import { importCampaignJson } from "../lib/importCampaign";
 import BusinessTypePicker from "../components/BusinessTypePicker";
 import SendToAI from "../components/SendToAI";
 import { NoticeDialog } from "../components/ConfirmDialog";
 import { usePreferences } from "../lib/preferences";
 import { buildUrlIntakePrompt, looksLikeUrl, normalizeUrl } from "../lib/urlSource";
 import { getBusinessType } from "../lib/businessTypes";
-import { buildProductDesignBriefPrompt, buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "../lib/auditPrompt";
-import type { AssetRole, ProjectAsset } from "../types";
+import { buildCombinedBriefCampaignPrompt, buildProductDesignBriefPrompt, buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "../lib/auditPrompt";
+import { loadState, saveState } from "../lib/storage";
+import type { AssetRole, BrandProfile, CampaignConcept, CampaignPrompt, ProjectAsset } from "../types";
 
 function downloadText(filename: string, text: string) {
   const blob = new Blob([text], { type: "text/markdown" });
@@ -50,6 +52,10 @@ export default function ProjectScanPage({
   setPreviewUrls,
   previewDataUrls,
   setPreviewDataUrls,
+  setBrand,
+  setPrompt,
+  setImportedConcepts,
+  setSelectedConceptId,
   promptCtx,
   goToCampaignPrompt,
   saveScanAsProject,
@@ -69,6 +75,10 @@ export default function ProjectScanPage({
   setPreviewUrls: (next: Record<string, string>) => void;
   previewDataUrls: Record<string, string>;
   setPreviewDataUrls: (next: Record<string, string>) => void;
+  setBrand: (brand: BrandProfile) => void;
+  setPrompt: (prompt: CampaignPrompt) => void;
+  setImportedConcepts: (concepts: CampaignConcept[] | null) => void;
+  setSelectedConceptId: (id: string) => void;
   promptCtx: PromptContext;
   goToCampaignPrompt: () => void;
   saveScanAsProject: () => void;
@@ -83,6 +93,13 @@ export default function ProjectScanPage({
   const [exportCopied, setExportCopied] = useState(false);
   const [auditCopied, setAuditCopied] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [aiResultText, setAiResultText] = useState("");
+  const [aiImportFeedback, setAiImportFeedback] = useState<
+    | { kind: "ok"; summary: string; warnings: string[] }
+    | { kind: "error"; error: string }
+    | null
+  >(null);
+  const [briefImported, setBriefImported] = useState(() => loadState("launchfoundry.scan.briefImported", false));
   const [isProcessing, setIsProcessing] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [previewAssetId, setPreviewAssetId] = useState<string | null>(null);
@@ -110,6 +127,10 @@ export default function ProjectScanPage({
     () => buildProductDesignBriefPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets),
     [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets]
   );
+  const combinedBriefCampaignPrompt = useMemo(
+    () => buildCombinedBriefCampaignPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets, promptCtx.prompt),
+    [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets, promptCtx.prompt]
+  );
   const isScanMode = !!scannedAssets;
   const excerptCount = Object.keys(sourceExcerpts).length;
 
@@ -127,6 +148,9 @@ export default function ProjectScanPage({
       setSourceExcerpts(sourceExcerpts);
       setPendingAssets([]);
       setPendingExcerpts({});
+      setBriefImported(false);
+      saveState("launchfoundry.scan.briefImported", false);
+      setAiImportFeedback(null);
       setImportStatus(`Imported ${scanned.length} usable files. ${skipped} skipped.`);
     } finally {
       setIsProcessing(false);
@@ -157,6 +181,9 @@ export default function ProjectScanPage({
       setSourceExcerpts(parsed.sourceExcerpts);
       setPendingAssets([]);
       setPendingExcerpts({});
+      setBriefImported(false);
+      saveState("launchfoundry.scan.briefImported", false);
+      setAiImportFeedback(null);
       setImportStatus(`Imported ${parsed.assets.length} files from ${file.name}. ${parsed.skippedCount} skipped.`);
     } finally {
       setIsProcessing(false);
@@ -180,6 +207,9 @@ export default function ProjectScanPage({
     setPendingExcerpts({});
     setPreviewDataUrls({});
     setImportStatus(null);
+    setBriefImported(false);
+    saveState("launchfoundry.scan.briefImported", false);
+    setAiImportFeedback(null);
   };
 
   const handleCopyPrompt = async () => {
@@ -198,6 +228,46 @@ export default function ProjectScanPage({
     try { await copyToClipboard(auditPrompt); } catch {}
     setAuditCopied(true);
     setTimeout(() => setAuditCopied(false), 1500);
+  };
+
+  const applyBrandToPrompt = (brand: BrandProfile) => {
+    setPrompt({
+      ...promptCtx.prompt,
+      projectName: brand.projectName,
+      goal: `Create a ${promptCtx.platform.replaceAll("_", " ")} campaign for ${brand.businessName || brand.projectName}. ${brand.oneLiner} Offer: ${brand.offerSummary || brand.cta}`,
+      audienceHint: brand.targetCustomer,
+      toneHint: brand.tone,
+      offerHint: brand.offerSummary,
+    });
+  };
+
+  const handleImportAiResult = () => {
+    const result = importCampaignJson(aiResultText);
+    if (!result.ok) {
+      setAiImportFeedback({ kind: "error", error: result.error });
+      return;
+    }
+
+    const parts: string[] = [];
+    if (result.brand) {
+      setBrand(result.brand);
+      applyBrandToPrompt(result.brand);
+      parts.push("brand + campaign input");
+    }
+    if (result.concepts && result.concepts.length > 0) {
+      setImportedConcepts(result.concepts);
+      setSelectedConceptId(result.concepts[0]!.id);
+      parts.push(`${result.concepts.length} concept${result.concepts.length === 1 ? "" : "s"}`);
+    }
+
+    setBriefImported(true);
+    saveState("launchfoundry.scan.briefImported", true);
+    setAiResultText("");
+    setAiImportFeedback({
+      kind: "ok",
+      summary: `Imported ${parts.join(" + ")}.${result.recommendation ? " Recommendation: " + result.recommendation : ""}`,
+      warnings: result.warnings,
+    });
   };
 
   // Updating a role goes either to the active scan list or directly to the project's asset list.
@@ -266,15 +336,6 @@ export default function ProjectScanPage({
           <div className={`import-status${isProcessing ? " import-status--busy" : ""}`}>
             <span className="spinner" aria-hidden />
             <span>{importStatus ?? "Working..."}</span>
-          </div>
-        )}
-        {scannedAssets && (
-          <div className="next-step-callout">
-            <div>
-              <strong>When ChatGPT or Claude gives you JSON back, paste it on the next page.</strong>
-              <span>Use this for the product brief result or the full campaign prompt result.</span>
-            </div>
-            <button className="primary" onClick={goToCampaignPrompt}>Next: paste AI result</button>
           </div>
         )}
         <input
@@ -395,37 +456,80 @@ export default function ProjectScanPage({
 
       {activeAssets.length > 0 && (
         <Card
-          title="3 · Ask AI to understand this website"
-          eyebrow="Audit / product-design brief"
+          title="3 · Understand this website"
+          eyebrow="Required before campaign generation"
           action={
             <div className="button-row">
               <SendToAI promptText={designBriefPrompt} buttonText="Make product brief" />
-              <button className="primary" onClick={goToCampaignPrompt}>Paste AI result</button>
+              <SendToAI promptText={combinedBriefCampaignPrompt} buttonText="Brief + campaign" />
               <button onClick={handleCopyAuditPrompt}>{auditCopied ? "✓ Copied" : "Copy audit prompt"}</button>
               <button onClick={() => downloadText("launchfoundry-website-audit-prompt.md", auditPrompt)}>Download audit prompt</button>
             </div>
           }
         >
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>
-            This is the testing prompt for an uploaded website/code pack. Send the brief prompt to an AI bot, paste the code-review/export file into the same chat, and ask it to return a structured product/design brief LaunchFoundry can use for better strategy, ads, and QA.
+            Send the product brief prompt to an AI bot, paste the project review pack into the same chat, then paste the JSON result below. LaunchFoundry will update the brand profile and prefill the campaign input automatically.
           </p>
+          <textarea
+            value={aiResultText}
+            onChange={e => setAiResultText(e.target.value)}
+            rows={9}
+            placeholder='{ "projectName": "...", "oneLiner": "...", "primaryAudience": "..." }'
+            style={{ marginTop: 12, fontFamily: "var(--mono)", fontSize: 12 }}
+          />
+          <div className="button-row" style={{ marginTop: 10 }}>
+            <button className="primary" onClick={handleImportAiResult} disabled={!aiResultText.trim()}>
+              Import Step 3 result
+            </button>
+            {briefImported && <button onClick={goToCampaignPrompt}>Review campaign input</button>}
+          </div>
+          {aiImportFeedback?.kind === "ok" && (
+            <div className="inline-feedback inline-feedback--ok">
+              <strong>Imported.</strong> {aiImportFeedback.summary}
+              {aiImportFeedback.warnings.length > 0 && (
+                <ul>
+                  {aiImportFeedback.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+          {aiImportFeedback?.kind === "error" && (
+            <div className="inline-feedback inline-feedback--error">
+              <strong>Import failed.</strong> {aiImportFeedback.error}
+            </div>
+          )}
         </Card>
       )}
 
       {activeAssets.length > 0 && (
         <Card
-          title="4 · Generate the intake prompt"
-          eyebrow="Mega prompt from this scan"
+          title="4 · Generate campaign plan"
+          eyebrow={briefImported ? "Unlocked" : "Locked until Step 3 is imported"}
           action={
-            <div className="button-row">
-              <SendToAI promptText={intakePrompt} buttonText="Send to ChatGPT" />
-              <button onClick={handleCopyPrompt}>{copied ? "✓ Copied" : "Copy"}</button>
-              <button onClick={() => downloadText("launchfoundry-intake.md", intakePrompt)}>Download</button>
-              <button onClick={() => setShowPrompt(v => !v)}>{showPrompt ? "Hide" : "Show"}</button>
-              <button onClick={goToCampaignPrompt}>Paste result →</button>
-            </div>
+            briefImported ? (
+              <div className="button-row">
+                <SendToAI promptText={intakePrompt} buttonText="Generate campaign" />
+                <button onClick={handleCopyPrompt}>{copied ? "✓ Copied" : "Copy"}</button>
+                <button onClick={() => downloadText("launchfoundry-intake.md", intakePrompt)}>Download</button>
+                <button onClick={() => setShowPrompt(v => !v)}>{showPrompt ? "Hide" : "Show"}</button>
+              </div>
+            ) : (
+              <div className="button-row">
+                <button disabled>Generate campaign</button>
+              </div>
+            )
           }
         >
+          {!briefImported && (
+            <div className="locked-step">
+              Import the Step 3 product brief first. That gives this campaign prompt the right product, audience, offer, tone, and CTA.
+            </div>
+          )}
+          {briefImported && (
+            <p className="helper-copy">
+              This prompt now uses the imported Step 3 brief. If the AI returns full campaign JSON, paste it back into the Step 3 box above.
+            </p>
+          )}
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>
             {isScanMode ? (
               <>
