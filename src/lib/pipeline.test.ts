@@ -143,10 +143,13 @@ describe("project review imports", () => {
 
   it("builds a PowerShell export command and website audit prompt", () => {
     const command = buildProjectExportPowerShell("C:\\Sites\\demo-site", "C:\\Users\\me\\Downloads\\demo-site.xml");
+    const autoNamedCommand = buildProjectExportPowerShell("C:\\Sites\\strictsub", undefined, "strictsub");
     const prompt = buildWebsiteAuditPrompt("Demo Site", { "package.json": "{}" }, assets);
 
     expect(command).toContain("$projectRoot = \"C:\\Sites\\demo-site\"");
     expect(command).toContain("<project_files>");
+    expect(autoNamedCommand).toContain("$output = \"C:\\Users\\$env:USERNAME\\Downloads\\strictsub-ai-review-pack.xml\"");
+    expect(autoNamedCommand).toContain("Get-Item -LiteralPath $projectRoot");
     expect(prompt).toContain("Audit this website/application");
     expect(prompt).toContain("Demo Site");
   });

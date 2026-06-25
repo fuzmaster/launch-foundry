@@ -1,13 +1,26 @@
 import type { CampaignPrompt, ProjectAsset } from "../types";
 
 const DEFAULT_PROJECT_ROOT = "C:\\Sites\\my-project";
-const DEFAULT_OUTPUT = "C:\\Users\\$env:USERNAME\\Downloads\\my-project-ai-review-pack.xml";
+const DEFAULT_OUTPUT_BASENAME = "my-project";
 
-export function buildProjectExportPowerShell(projectRoot = DEFAULT_PROJECT_ROOT, output = DEFAULT_OUTPUT): string {
+function slugifyFilename(value: string): string {
+  return (value || DEFAULT_OUTPUT_BASENAME)
+    .trim()
+    .replace(/[/\\]+$/g, "")
+    .split(/[/\\]/)
+    .filter(Boolean)
+    .pop()
+    ?.replace(/[^a-z0-9_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || DEFAULT_OUTPUT_BASENAME;
+}
+
+export function buildProjectExportPowerShell(projectRoot = DEFAULT_PROJECT_ROOT, output?: string, projectName?: string): string {
+  const outputPath = output ?? `C:\\Users\\$env:USERNAME\\Downloads\\${slugifyFilename(projectName || projectRoot)}-ai-review-pack.xml`;
   return `# AI REVIEW PACK EXPORT XML
 
 $projectRoot = "${projectRoot}"
-$output = "${output}"
+$output = "${outputPath}"
 
 $include = @(
   "*.ts","*.tsx","*.js","*.jsx","*.mjs","*.cjs",
@@ -21,7 +34,7 @@ $excludeDirs = @(
 
 Remove-Item -LiteralPath $output -ErrorAction SilentlyContinue
 
-$projectRoot = (Get-Item $projectRoot).FullName
+$projectRoot = (Get-Item -LiteralPath $projectRoot).FullName
 
 $files = Get-ChildItem -Path $projectRoot -Recurse -File -Include $include |
   Where-Object {

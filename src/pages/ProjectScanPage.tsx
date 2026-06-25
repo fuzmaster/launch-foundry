@@ -156,7 +156,26 @@ export default function ProjectScanPage({
     () => renderMegaPrompt(intakeCtx, scannedAssets ? sourceExcerpts : undefined),
     [intakeCtx, scannedAssets, sourceExcerpts]
   );
-  const exportCommand = useMemo(() => buildProjectExportPowerShell(rootPath.trim() || undefined), [rootPath]);
+  const suggestedProjectRoot = useMemo(
+    () => rootPath.trim() || (detectedRoot ? `C:\\Sites\\${detectedRoot}` : ""),
+    [rootPath, detectedRoot]
+  );
+  const reviewPackFilename = useMemo(
+    () => `${(detectedRoot || promptCtx.brand.projectName || "my-project")
+      .trim()
+      .replace(/[/\\]+$/g, "")
+      .split(/[/\\]/)
+      .filter(Boolean)
+      .pop()
+      ?.replace(/[^a-z0-9_-]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase() || "my-project"}-ai-review-pack.xml`,
+    [detectedRoot, promptCtx.brand.projectName]
+  );
+  const exportCommand = useMemo(
+    () => buildProjectExportPowerShell(suggestedProjectRoot || undefined, undefined, detectedRoot || promptCtx.brand.projectName),
+    [suggestedProjectRoot, detectedRoot, promptCtx.brand.projectName]
+  );
   const auditPrompt = useMemo(
     () => buildWebsiteAuditPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets),
     [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets]
@@ -198,7 +217,7 @@ export default function ProjectScanPage({
       setBriefImported(false);
       saveState("launchfoundry.scan.briefImported", false);
       setAiImportFeedback(null);
-      setImportStatus(`Imported ${scanned.length} usable files. ${skipped} skipped.`);
+      setImportStatus(`Imported ${scanned.length} usable files. ${skipped} skipped. PowerShell review command updated for ${rootFolderName}.`);
     } finally {
       setIsProcessing(false);
     }
@@ -412,6 +431,11 @@ export default function ProjectScanPage({
           Project folder path (optional, helps PowerShell and render scripts find files)
           <input value={rootPath} onChange={e => setRootPath(e.target.value)} placeholder="C:\Sites\strictsub" />
         </label>
+        {detectedRoot && !rootPath.trim() && (
+          <p style={{ margin: "-6px 0 12px", fontSize: 12, color: "var(--muted)", lineHeight: 1.45 }}>
+            Folder import detected <code>{detectedRoot}</code>. The PowerShell command below now uses <code>{suggestedProjectRoot}</code> and writes <code>{reviewPackFilename}</code>. Edit the path if your folder lives somewhere else.
+          </p>
+        )}
         <div className="button-row" style={{ marginTop: 8, flexWrap: "wrap" }}>
           <button onClick={() => inputRef.current?.click()} disabled={isProcessing}>Choose folder...</button>
           {pendingAssets.length > 0 && (
@@ -449,7 +473,7 @@ export default function ProjectScanPage({
             ...or make a code review file from PowerShell
           </strong>
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
-            Use this when the browser folder picker misses context. Paste your project path above, copy this command into PowerShell, then upload the XML file it creates from Downloads.
+            Use this when the browser folder picker misses context. After you import a folder, this command updates its suggested path and XML file name. Edit the path above if needed, then upload the XML file it creates from Downloads.
           </p>
           <div className="button-row" style={{ flexWrap: "wrap" }}>
             <button onClick={handleCopyExportCommand}>{exportCopied ? "✓ Copied" : "Copy PowerShell command"}</button>
