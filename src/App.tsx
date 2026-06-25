@@ -345,8 +345,8 @@ export default function App() {
       {page === "prompts" && <PromptPackPage ctx={promptCtx} />}
       {page === "build" && <StudioPage />}
       {page === "music" && <MusicPage />}
-      {page === "schedule" && <SchedulePage />}
-      {page === "platforms" && <PlatformsPage />}
+      {page === "schedule" && <SchedulePage concepts={liveConcepts} />}
+      {page === "platforms" && <PlatformsPage brand={brand} concepts={liveConcepts} />}
       {page === "projects" && (
         <ProjectsPage
           projects={projects}

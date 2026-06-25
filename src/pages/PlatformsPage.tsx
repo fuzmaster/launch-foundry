@@ -15,6 +15,7 @@ import {
   buildSetupBrief, parseSetupBrief,
   type PlatformRecommendationResult, type SetupBriefResult,
 } from "../lib/platformPack";
+import type { BrandProfile, CampaignConcept } from "../types";
 
 const ALL_PLATFORMS: Platform[] = ["instagram", "tiktok", "youtube", "linkedin", "x", "facebook", "pinterest"];
 
@@ -22,17 +23,33 @@ function copyToClipboard(text: string): Promise<void> {
   return navigator.clipboard.writeText(text).catch(() => {});
 }
 
-export default function PlatformsPage() {
-  const tokens: BrandTokens = useMemo(() => loadState<BrandTokens>("launchfoundry.studio.tokens", DEFAULT_TOKENS), []);
-  const defaultBrandSummary = useMemo(() => {
-    const projectName = loadState<string>("launchfoundry.studio.projectName", "Your project");
-    return `${projectName} — ${tokens.motif} motif, ${tokens.fontDisplay.replace(/['"]/g, "").split(",")[0]} display font`;
-  }, [tokens]);
+function brandToTokens(brand: BrandProfile): BrandTokens {
+  const colors = brand.colors.filter(Boolean);
+  return {
+    ...DEFAULT_TOKENS,
+    background: colors[0] || DEFAULT_TOKENS.background,
+    surface: colors[1] || DEFAULT_TOKENS.surface,
+    accent: colors[2] || colors[0] || DEFAULT_TOKENS.accent,
+    accentSoft: colors[2] || colors[0] || DEFAULT_TOKENS.accentSoft,
+    fontDisplay: brand.fonts[0] || DEFAULT_TOKENS.fontDisplay,
+    fontBody: brand.fonts[1] || brand.fonts[0] || DEFAULT_TOKENS.fontBody,
+    motif: DEFAULT_TOKENS.motif,
+  };
+}
+
+function defaultSummary(brand: BrandProfile): string {
+  const proof = brand.proofPoints.length > 0 ? ` Proof: ${brand.proofPoints.slice(0, 2).join("; ")}.` : "";
+  return `${brand.businessName || brand.projectName} — ${brand.oneLiner || brand.offerSummary}.${proof}`;
+}
+
+export default function PlatformsPage({ brand, concepts }: { brand: BrandProfile; concepts: CampaignConcept[] }) {
+  const tokens: BrandTokens = useMemo(() => brandToTokens(brand), [brand]);
+  const defaultBrandSummary = useMemo(() => defaultSummary(brand), [brand]);
 
   // ─ Section 1 state ────────────────────────────────────────────────────
   const [brandSummary, setBrandSummary] = useState<string>(() => loadState("launchfoundry.platforms.brand", defaultBrandSummary));
-  const [audienceHint, setAudienceHint] = useState<string>(() => loadState("launchfoundry.platforms.audience", "Builders / makers / DIY-curious adults 25-54"));
-  const [productType, setProductType] = useState<string>(() => loadState("launchfoundry.platforms.product", "Service business"));
+  const [audienceHint, setAudienceHint] = useState<string>(() => loadState("launchfoundry.platforms.audience", brand.targetCustomer || ""));
+  const [productType, setProductType] = useState<string>(() => loadState("launchfoundry.platforms.product", brand.category || "Service business"));
   const [geo, setGeo] = useState<string>(() => loadState("launchfoundry.platforms.geo", ""));
   const [recPasteText, setRecPasteText] = useState("");
   const [recResult, setRecResult] = useState<PlatformRecommendationResult | null>(() => loadState<PlatformRecommendationResult | null>("launchfoundry.platforms.recResult", null));
@@ -45,6 +62,12 @@ export default function PlatformsPage() {
   useEffect(() => saveState("launchfoundry.platforms.recResult", recResult), [recResult]);
 
   const recPrompt = useMemo(() => buildRecommendationPrompt({ brandSummary, audienceHint, productType, geo: geo || undefined }), [brandSummary, audienceHint, productType, geo]);
+  useEffect(() => {
+    setBrandSummary(defaultBrandSummary);
+    setAudienceHint(brand.targetCustomer || "");
+    setProductType(brand.category || "Service business");
+    setRecResult(null);
+  }, [brand.projectName, defaultBrandSummary, brand.targetCustomer, brand.category]);
 
   function onImportRec() {
     setRecImportError(null);
@@ -58,15 +81,26 @@ export default function PlatformsPage() {
   }
 
   // ─ Section 2 — composer ──────────────────────────────────────────────
-  // Pull a concept from local storage if any; otherwise demo.
   type DemoConcept = { id: string; title: string; hook: string; cta: string; url?: string };
   const concept: DemoConcept = useMemo(() => {
-    const studioTagline = loadState<string>("launchfoundry.studio.tagline", "Built in place. Built to last.");
-    const studioCta = loadState<string>("launchfoundry.studio.cta", "Get a quote");
-    const studioUrl = loadState<string>("launchfoundry.studio.url", "");
-    const studioOneLiner = loadState<string>("launchfoundry.studio.oneLiner", "Custom carpentry that fits your space.");
-    return { id: "studio", title: studioTagline, hook: studioOneLiner, cta: studioCta, url: studioUrl || undefined };
-  }, []);
+    const selected = concepts[0];
+    if (selected) {
+      return {
+        id: selected.id,
+        title: selected.title || selected.angle || brand.projectName,
+        hook: selected.hook || selected.promise || selected.caption || brand.oneLiner,
+        cta: selected.cta || brand.cta,
+        url: brand.websiteUrl || undefined,
+      };
+    }
+    return {
+      id: "brand",
+      title: brand.projectName,
+      hook: brand.oneLiner || brand.offerSummary,
+      cta: brand.cta || "Learn more",
+      url: brand.websiteUrl || undefined,
+    };
+  }, [concepts, brand]);
 
   const [composerPlatforms, setComposerPlatforms] = useState<Platform[]>(() => loadState<Platform[]>("launchfoundry.platforms.composerPlatforms", ["instagram", "tiktok", "linkedin"]));
   useEffect(() => saveState("launchfoundry.platforms.composerPlatforms", composerPlatforms), [composerPlatforms]);

@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Card from "../components/Card";
 import { loadState, saveState } from "../lib/storage";
+import type { CampaignConcept } from "../types";
 import {
   PLATFORM_LABEL, BEST_TIMES, generateSchedule, exportIcs, exportCsv, downloadFile,
   type Platform, type Cadence, type PlannedPost,
@@ -18,26 +19,17 @@ const CADENCES: { id: Cadence; label: string; hint: string }[] = [
   { id: "weekly",          label: "Weekly",           hint: "1 post per week per concept" },
 ];
 
-/** Reads the active project's concepts from localStorage. Falls back to a
- *  single demo concept if nothing's been imported yet. */
-function loadConcepts(): { id: string; title: string; caption: string; link?: string }[] {
-  const projectsRaw = loadState<unknown[]>("launchfoundry.projects", []);
-  const currentId = loadState<string>("launchfoundry.currentProject", "");
-  const proj = (projectsRaw as Array<{ id: string; concepts?: Array<{ id: string; title?: string; angle?: string; caption?: string; cta?: string }> }>)
-    .find(p => p.id === currentId);
-  if (!proj || !proj.concepts || proj.concepts.length === 0) {
-    return [{ id: "demo", title: "First reel", caption: "Built locally. Watch how it comes together. ↓" }];
-  }
-  return proj.concepts.map(c => ({
+function mapConcepts(concepts: CampaignConcept[]): { id: string; title: string; caption: string; link?: string }[] {
+  return concepts.map(c => ({
     id: c.id,
     title: c.title || c.angle || "Untitled concept",
-    caption: c.caption || "",
+    caption: c.caption || c.hook || "",
     link: undefined,
   }));
 }
 
-export default function SchedulePage() {
-  const concepts = useMemo(() => loadConcepts(), []);
+export default function SchedulePage({ concepts: campaignConcepts }: { concepts: CampaignConcept[] }) {
+  const concepts = useMemo(() => mapConcepts(campaignConcepts), [campaignConcepts]);
   const [platforms, setPlatforms] = useState<Platform[]>(() => loadState<Platform[]>("launchfoundry.schedule.platforms", ["instagram", "tiktok"]));
   const [cadence, setCadence] = useState<Cadence>(() => loadState<Cadence>("launchfoundry.schedule.cadence", "every-other-day"));
   const [startDateStr, setStartDateStr] = useState<string>(() => {
