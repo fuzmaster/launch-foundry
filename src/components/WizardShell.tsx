@@ -10,6 +10,7 @@ import type { Project } from "../data/projects";
 import { usePreferences } from "../lib/preferences";
 import AskForHelp from "./AskForHelp";
 import { speak, stopSpeaking, ttsAvailable } from "../lib/voice";
+import { loadState, saveState } from "../lib/storage";
 
 export type WizardStepKey = "project" | "research" | "concepts" | "build" | "schedule";
 export type SecondaryPageKey = "projects" | "brand" | "strategy" | "storyboard" | "renderspec" | "publishing" | "qa" | "prompts" | "music" | "platforms";
@@ -36,6 +37,59 @@ const SECONDARY_PAGES: { key: SecondaryPageKey; label: string; group: "Project" 
   { key: "prompts",    label: "Prompt pack",      group: "Reference" },
 ];
 
+const COACH_COPY: Record<WizardStepKey, { title: string; short: string; steps: string[]; done: string }> = {
+  project: {
+    title: "Add the things AI should look at",
+    short: "Start here. Add a website, folder, photos, videos, or a review file.",
+    steps: [
+      "Pick the closest business type.",
+      "Choose a folder, paste a website, or upload a review file.",
+      "If you have lots of images, run the review command to make a picture sheet.",
+    ],
+    done: "You are done when the recipe says Project files is green.",
+  },
+  research: {
+    title: "Ask AI to explain the project",
+    short: "Copy the prompt, send it to AI, then paste the JSON answer back.",
+    steps: [
+      "Click the AI button for the brief or campaign prompt.",
+      "Attach the review file or picture sheet if you made one.",
+      "Paste AI's JSON answer back into LaunchFoundry.",
+    ],
+    done: "You are done when AI notes is green.",
+  },
+  concepts: {
+    title: "Pick the videos worth making",
+    short: "Choose the best ideas. You do not need to use every idea.",
+    steps: [
+      "Read the titles and hooks.",
+      "Pick the one that sounds clearest for your customer.",
+      "Use the score as a helper, not a rule.",
+    ],
+    done: "You are done when Video picks is green.",
+  },
+  build: {
+    title: "Preview the video",
+    short: "Check the draft, then render when it looks right.",
+    steps: [
+      "Open the preview.",
+      "Check text, images, timing, and missing assets.",
+      "Render the video when the preview makes sense.",
+    ],
+    done: "You are done when Video draft is green.",
+  },
+  schedule: {
+    title: "Choose where and when to post",
+    short: "Pick platforms and dates, then export the posting plan.",
+    steps: [
+      "Choose the platforms you want.",
+      "Pick a start date and posting rhythm.",
+      "Download the calendar or CSV file.",
+    ],
+    done: "You are done when Posting plan is green.",
+  },
+};
+
 export default function WizardShell({
   page,
   setPage,
@@ -57,6 +111,8 @@ export default function WizardShell({
   const [prefs, setPrefs] = usePreferences();
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [coachOpen, setCoachOpen] = useState(false);
+  const [coachTipHidden, setCoachTipHidden] = useState(false);
   // Apply bigText to the document root so every page benefits without
   // each component opting in.
   useEffect(() => {
@@ -77,7 +133,7 @@ export default function WizardShell({
     if (!prefs.voiceEnabled) return;
     const step = WIZARD_STEPS.find(s => s.key === page);
     if (!step) return;
-    speak(`Step ${step.num} of 7. ${step.plainLabel}. ${step.tagline}`);
+    speak(`Step ${step.num} of ${WIZARD_STEPS.length}. ${step.plainLabel}. ${step.tagline}`);
     return () => stopSpeaking();
   }, [page, prefs.voiceEnabled]);
 
@@ -85,10 +141,33 @@ export default function WizardShell({
   const currentStep = isWizardStep ? (page as WizardStepKey) : null;
   const currentIdx = currentStep ? WIZARD_STEPS.findIndex(s => s.key === currentStep) : -1;
   const currentStepComplete = currentStep ? stepCompletion[currentStep] : true;
+  const currentCoach = currentStep ? COACH_COPY[currentStep] : null;
   const isLastStep = currentIdx === WIZARD_STEPS.length - 1;
   const goNext = () => { if (currentIdx >= 0 && currentIdx < WIZARD_STEPS.length - 1) setPage(WIZARD_STEPS[currentIdx + 1]!.key); };
   const finish = () => setFinishOpen(true);
   const goPrev = () => { if (currentIdx > 0) setPage(WIZARD_STEPS[currentIdx - 1]!.key); };
+
+  useEffect(() => {
+    if (!currentStep) return;
+    setCoachTipHidden(loadState(`launchfoundry.coach.v2.tipHidden.${currentStep}`, false));
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (!prefs.simpleMode || !currentStep) return;
+    const key = `launchfoundry.coach.v2.seen.${currentStep}`;
+    if (loadState(key, false)) return;
+    const timer = window.setTimeout(() => {
+      saveState(key, true);
+      setCoachOpen(true);
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [currentStep, prefs.simpleMode]);
+
+  const hideCoachTip = () => {
+    if (!currentStep) return;
+    saveState(`launchfoundry.coach.v2.tipHidden.${currentStep}`, true);
+    setCoachTipHidden(true);
+  };
 
   const [gearOpen, setGearOpen] = useState(false);
   const gearRef = useRef<HTMLDivElement | null>(null);
@@ -137,6 +216,17 @@ export default function WizardShell({
           <div className="wizard-shell__toprow-spacer" />
 
           <div className="wizard-shell__rightcontrols">
+          {currentCoach && (
+            <button
+              type="button"
+              className="coach-help-button"
+              onClick={() => setCoachOpen(true)}
+              title="Show simple help for this step"
+            >
+              Help me
+            </button>
+          )}
+
           {/* H-8 — voice narration toggle */}
           {ttsAvailable() && (
             <button
@@ -244,7 +334,22 @@ export default function WizardShell({
             ))}
           </div>
         </aside>
-        <section className="wizard-shell__content">{children}</section>
+        <section key={page} className="wizard-shell__content">
+          {prefs.simpleMode && currentCoach && !coachTipHidden && (
+            <div className="coach-tip" role="status">
+              <div>
+                <span className="coach-tip__label">Start here</span>
+                <strong>{currentCoach.title}</strong>
+                <p>{currentCoach.short}</p>
+              </div>
+              <div className="coach-tip__actions">
+                <button type="button" className="primary" onClick={() => setCoachOpen(true)}>Show me</button>
+                <button type="button" onClick={hideCoachTip}>Hide tip</button>
+              </div>
+            </div>
+          )}
+          {children}
+        </section>
       </main>
 
       {storageWarning && (
@@ -278,6 +383,46 @@ export default function WizardShell({
                 <button type="button" onClick={() => { setPage("publishing"); setFinishOpen(false); }}>Review publishing pack</button>
                 <button type="button" onClick={() => { setPage("qa"); setFinishOpen(false); }}>Run QA check</button>
                 <button type="button" onClick={() => { setPage("projects"); setFinishOpen(false); }}>Back to projects</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {coachOpen && currentCoach && (
+        <div className="modal-backdrop coach-modal-backdrop" onClick={() => setCoachOpen(false)}>
+          <div className="modal coach-modal" role="dialog" aria-modal="true" aria-labelledby="coach-title" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <span className="coach-modal__step">Step {currentIdx + 1} of {WIZARD_STEPS.length}</span>
+                <strong id="coach-title">{currentCoach.title}</strong>
+              </div>
+              <button type="button" onClick={() => setCoachOpen(false)}>Close</button>
+            </div>
+            <div className="modal-body">
+              <p className="coach-modal__plain">{currentCoach.short}</p>
+              <ol className="coach-modal__list">
+                {currentCoach.steps.map((item, idx) => (
+                  <li key={item}>
+                    <span>{idx + 1}</span>
+                    <p>{item}</p>
+                  </li>
+                ))}
+              </ol>
+              <div className="coach-modal__done">
+                <strong>How you know you are done</strong>
+                <span>{currentCoach.done}</span>
+              </div>
+              <div className="button-row coach-modal__actions">
+                {ttsAvailable() && (
+                  <button
+                    type="button"
+                    onClick={() => speak(`${currentCoach.title}. ${currentCoach.short}. ${currentCoach.steps.join(". ")}. ${currentCoach.done}`)}
+                  >
+                    Read this out loud
+                  </button>
+                )}
+                <button type="button" className="primary" onClick={() => setCoachOpen(false)}>Got it</button>
               </div>
             </div>
           </div>
