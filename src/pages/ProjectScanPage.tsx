@@ -83,6 +83,8 @@ export default function ProjectScanPage({
   const [exportCopied, setExportCopied] = useState(false);
   const [auditCopied, setAuditCopied] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
   const [previewAssetId, setPreviewAssetId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
@@ -113,33 +115,52 @@ export default function ProjectScanPage({
 
   const handleFolderPick = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-    const { rootFolderName, assets: scanned, skippedCount: skipped, previewUrls: urls, previewDataUrls: dataUrls, sourceExcerpts } = await scanFolder(fileList, rootPath);
-    setDetectedRoot(rootFolderName);
-    setPendingAssets(scanned);
-    setSkippedCount(skipped);
-    setPreviewUrls(urls); // App-level setter handles revoking the old set
-    setPreviewDataUrls(dataUrls);
-    setPendingExcerpts(sourceExcerpts);
+    setIsProcessing(true);
+    setImportStatus("Scanning folder...");
+    try {
+      const { rootFolderName, assets: scanned, skippedCount: skipped, previewUrls: urls, previewDataUrls: dataUrls, sourceExcerpts } = await scanFolder(fileList, rootPath);
+      setDetectedRoot(rootFolderName);
+      setSkippedCount(skipped);
+      setPreviewUrls(urls); // App-level setter handles revoking the old set
+      setPreviewDataUrls(dataUrls);
+      setScannedAssets(scanned);
+      setSourceExcerpts(sourceExcerpts);
+      setPendingAssets([]);
+      setPendingExcerpts({});
+      setImportStatus(`Imported ${scanned.length} usable files. ${skipped} skipped.`);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Code-review text dump as alternate input. Same downstream state as a
   // folder pick — the intake prompt picks up the source excerpts the same way.
   const handleCodeReviewDrop = async (file: File) => {
-    const text = await file.text();
-    const parsed = parseCodeReview(text, file.name);
-    if (parsed.totalFiles === 0) {
-      setNotice({
-        title: "No file markers found",
-        message: "That file does not include `===== FILE: ... =====` markers, so LaunchFoundry cannot split it into source excerpts.",
-      });
-      return;
+    setIsProcessing(true);
+    setImportStatus(`Reading ${file.name}...`);
+    try {
+      const text = await file.text();
+      const parsed = parseCodeReview(text, file.name);
+      if (parsed.totalFiles === 0) {
+        setNotice({
+          title: "No file markers found",
+          message: "That file does not include `===== FILE: ... =====` markers or XML `<file path=\"...\">` entries, so LaunchFoundry cannot split it into source excerpts.",
+        });
+        setImportStatus(null);
+        return;
+      }
+      setDetectedRoot(parsed.folderName);
+      setSkippedCount(parsed.skippedCount);
+      setPreviewUrls({}); // dumps don't carry image bytes
+      setPreviewDataUrls({});
+      setScannedAssets(parsed.assets);
+      setSourceExcerpts(parsed.sourceExcerpts);
+      setPendingAssets([]);
+      setPendingExcerpts({});
+      setImportStatus(`Imported ${parsed.assets.length} files from ${file.name}. ${parsed.skippedCount} skipped.`);
+    } finally {
+      setIsProcessing(false);
     }
-    setDetectedRoot(parsed.folderName);
-    setPendingAssets(parsed.assets);
-    setSkippedCount(parsed.skippedCount);
-    setPendingExcerpts(parsed.sourceExcerpts);
-    setPreviewUrls({}); // dumps don't carry image bytes
-    setPreviewDataUrls({});
   };
   const codeReviewInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -158,6 +179,7 @@ export default function ProjectScanPage({
     setPendingAssets([]);
     setPendingExcerpts({});
     setPreviewDataUrls({});
+    setImportStatus(null);
   };
 
   const handleCopyPrompt = async () => {
@@ -201,20 +223,32 @@ export default function ProjectScanPage({
           : "Start here. Pick a folder, then generate one intake prompt that captures everything the rest of the pipeline needs. Click any image to see the full-resolution version; tag assets with their role so the prompt knows what's an opener vs. proof vs. end card."}
       </p>
 
+      <Card title="Plain-English map" eyebrow="What these words mean">
+        <div className="term-grid">
+          <div><strong>Import files</strong><span>Bring in a folder, website URL, or AI review pack.</span></div>
+          <div><strong>Review pack</strong><span>A text/XML copy of project files that an AI bot can read.</span></div>
+          <div><strong>Product brief</strong><span>A summary of what the website/app is, who it serves, and what to market.</span></div>
+          <div><strong>Campaign prompt</strong><span>The final prompt that asks AI for ads, storyboards, captions, and QA.</span></div>
+        </div>
+      </Card>
+
       <Card title="1 · What kind of business?" eyebrow="Picks a sensible style for everything that follows">
+        <p className="helper-copy">
+          This choice tunes the voice, examples, campaign angles, and platform suggestions. Pick the closest fit; you can change it later.
+        </p>
         <BusinessTypePicker />
       </Card>
 
-      <Card title={prefs.simpleMode ? "2 · Bring in your files" : "2 · Scan a folder"} eyebrow={prefs.simpleMode ? "Folder, project export, or URL" : "Live folder pick / AI review pack"}>
+      <Card title={prefs.simpleMode ? "2 · Import website or project context" : "2 · Import files"} eyebrow={prefs.simpleMode ? "Folder, project export, or URL" : "Folder / URL / AI review pack"}>
         <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--muted)" }}>
-          Pick a project folder under <code>C:\Sites</code>. Browsers don't expose absolute paths to web pages, so paste the absolute root below if you want the reels-bridge to know where files live on disk.
+          Choose one source. Folder upload is easiest. The AI review pack is best when you want ChatGPT or Claude to read code context. The website URL path is best when you only have a live site.
         </p>
         <label>
-          Absolute root path (optional)
+          Project folder path (optional, helps PowerShell and render scripts find files)
           <input value={rootPath} onChange={e => setRootPath(e.target.value)} placeholder="C:\Sites\strictsub" />
         </label>
         <div className="button-row" style={{ marginTop: 8, flexWrap: "wrap" }}>
-          <button onClick={() => inputRef.current?.click()}>Choose folder…</button>
+          <button onClick={() => inputRef.current?.click()} disabled={isProcessing}>Choose folder...</button>
           {pendingAssets.length > 0 && (
             <button className="primary" onClick={commit}>
               Use {pendingAssets.length} files as working asset list
@@ -228,6 +262,12 @@ export default function ProjectScanPage({
             </>
           )}
         </div>
+        {(isProcessing || importStatus) && (
+          <div className={`import-status${isProcessing ? " import-status--busy" : ""}`}>
+            <span className="spinner" aria-hidden />
+            <span>{importStatus ?? "Working..."}</span>
+          </div>
+        )}
         <input
           ref={inputRef}
           type="file"
@@ -296,7 +336,7 @@ export default function ProjectScanPage({
         <input
           ref={codeReviewInputRef}
           type="file"
-          accept=".txt,.md,text/plain"
+          accept=".txt,.md,.xml,text/plain,text/xml,application/xml"
           style={{ display: "none" }}
           onChange={e => {
             const f = e.target.files?.[0];

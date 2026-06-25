@@ -55,11 +55,21 @@ export default function WizardShell({
   children: ReactNode;
 }) {
   const [prefs, setPrefs] = usePreferences();
+  const [storageWarning, setStorageWarning] = useState<string | null>(null);
   // Apply bigText to the document root so every page benefits without
   // each component opting in.
   useEffect(() => {
     document.documentElement.classList.toggle("lf-big-text", prefs.bigText);
   }, [prefs.bigText]);
+
+  useEffect(() => {
+    const onStorageError = (e: Event) => {
+      const detail = (e as CustomEvent<{ key?: string }>).detail;
+      setStorageWarning(`Browser storage could not save ${detail?.key ?? "your latest change"}. This session will keep working, but export anything important before closing.`);
+    };
+    window.addEventListener("lf-storage-error", onStorageError);
+    return () => window.removeEventListener("lf-storage-error", onStorageError);
+  }, []);
 
   // H-8 — auto-narrate the current step's tagline when voice is on.
   useEffect(() => {
@@ -207,6 +217,13 @@ export default function WizardShell({
       </header>
 
       <main className="wizard-shell__main">{children}</main>
+
+      {storageWarning && (
+        <div className="toast toast--warning" role="status">
+          <span>{storageWarning}</span>
+          <button type="button" onClick={() => setStorageWarning(null)}>Dismiss</button>
+        </div>
+      )}
 
       {prefs.simpleMode && currentStep && (
         <AskForHelp
