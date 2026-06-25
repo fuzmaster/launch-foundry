@@ -463,11 +463,12 @@ export function buildCombinedBriefCampaignPrompt(
   projectName: string,
   sourceExcerpts: Record<string, string>,
   assets: ProjectAsset[],
-  prompt: CampaignPrompt
+  prompt: CampaignPrompt,
+  assetMetadata = ""
 ): string {
-  return `You are helping LaunchFoundry understand an uploaded website/app and immediately turn it into campaign ideas.
+  return `You are helping LaunchFoundry understand an uploaded website/app, choose the best assets, and turn everything into effective short-form video ideas.
 
-Read the attached project/code context. First infer the product/design brief. Then create three marketing campaign concepts using only supported facts from the code, README, visible UI text, metadata, and assets.
+Read the attached project/code context. First infer the product/design brief. Then choose the best assets for video. Then create three marketing campaign concepts using only supported facts from the code, README, visible UI text, metadata, and assets.
 
 Project: ${projectName || "Uploaded website/app"}
 
@@ -543,16 +544,73 @@ Return only valid JSON in this shape:
     "visibleFeatures": [],
     "risksOrMissingContext": [],
     "recommendedAssetsToCollect": []
-  }
+  },
+  "assetRoles": [
+    {
+      "assetId": "",
+      "role": "opener|proof|broll|endcard|weak",
+      "reason": "",
+      "confidence": 0
+    }
+  ],
+  "reelPlan": {
+    "openerAssetIds": [],
+    "proofAssetIds": [],
+    "brollAssetIds": [],
+    "endcardAssetIds": [],
+    "assetsToAvoid": []
+  },
+  "clipIdeas": [
+    {
+      "title": "",
+      "assetIds": [],
+      "whyTheseAssets": "",
+      "missingFootage": []
+    }
+  ],
+  "imageGenerationReferences": [
+    {
+      "assetIds": [],
+      "prompt": "",
+      "negativePrompt": "",
+      "usage": "background|product-hero|before-after|thumbnail|end-card"
+    }
+  ],
+  "codeOrContentFindings": [
+    {
+      "sourcePath": "",
+      "finding": "",
+      "howToUseInCampaign": ""
+    }
+  ]
 }
 
 Rules:
 - Return exactly three concepts.
 - Use asset IDs from the provided context when useful.
+- Put asset IDs directly into concept.scenes[].assetIds wherever the visual should use a real scanned asset.
+- Also fill assetRoles so LaunchFoundry can label the asset list automatically.
+- If a PDF/HTML contact sheet is attached, inspect it and prefer clear, high-resolution, non-duplicate visuals.
+- For imageGenerationReferences, write prompts that reference attached images by asset ID and describe what to preserve.
 - Do not invent pricing, guarantees, certifications, testimonials, or proof.
 - If a fact is unclear, put it in risksOrMissingContext instead of guessing.
+- Do not invent asset IDs.
 
 Context inventory:
 - ${assets.length} files/assets detected.
-- Source excerpts available: ${Object.keys(sourceExcerpts).join(", ") || "none"}.`;
+- Source excerpts available: ${Object.keys(sourceExcerpts).join(", ") || "none"}.
+
+Asset inventory:
+\`\`\`json
+${JSON.stringify(assets.map(summarizeAsset), null, 2)}
+\`\`\`
+${assetMetadata.trim() ? `
+PowerShell asset review metadata:
+\`\`\`json
+${assetMetadata.trim()}
+\`\`\`
+` : `
+PowerShell asset review metadata:
+Not provided. If a contact sheet or metadata file is attached in the chat, use it when choosing assets.
+`}`;
 }

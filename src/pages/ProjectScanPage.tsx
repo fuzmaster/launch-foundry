@@ -12,7 +12,7 @@ import { NoticeDialog } from "../components/ConfirmDialog";
 import { usePreferences } from "../lib/preferences";
 import { buildUrlIntakePrompt, looksLikeUrl, normalizeUrl } from "../lib/urlSource";
 import { getBusinessType } from "../lib/businessTypes";
-import { buildAssetMetadataPowerShell, buildAssetShortlistPrompt, buildCombinedBriefCampaignPrompt, buildProductDesignBriefPrompt, buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "../lib/auditPrompt";
+import { buildAssetMetadataPowerShell, buildAssetShortlistPrompt, buildCombinedBriefCampaignPrompt, buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "../lib/auditPrompt";
 import { loadState, saveState } from "../lib/storage";
 import type { AssetRole, BrandProfile, CampaignConcept, CampaignPrompt, ProjectAsset } from "../types";
 
@@ -180,13 +180,9 @@ export default function ProjectScanPage({
     () => buildWebsiteAuditPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets),
     [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets]
   );
-  const designBriefPrompt = useMemo(
-    () => buildProductDesignBriefPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets),
-    [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets]
-  );
   const combinedBriefCampaignPrompt = useMemo(
-    () => buildCombinedBriefCampaignPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets, workingPrompt),
-    [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets, workingPrompt]
+    () => buildCombinedBriefCampaignPrompt(detectedRoot || promptCtx.brand.projectName, scannedAssets ? sourceExcerpts : {}, activeAssets, workingPrompt, assetMetadataText),
+    [detectedRoot, promptCtx.brand.projectName, scannedAssets, sourceExcerpts, activeAssets, workingPrompt, assetMetadataText]
   );
   const assetShortlistPrompt = useMemo(
     () => buildAssetShortlistPrompt(detectedRoot || promptCtx.brand.projectName, activeAssets, scannedAssets ? sourceExcerpts : {}, assetMetadataText),
@@ -320,9 +316,49 @@ export default function ProjectScanPage({
     });
   };
 
+  const applyAssetRoleList = (roles: Array<{ assetId: string; role: AssetRole }>) => {
+    if (roles.length === 0) return { appliedCount: 0, skippedCount: 0 };
+    const roleMap = new Map(roles.map(r => [r.assetId, r.role]));
+    const applyRoles = (list: ProjectAsset[]) =>
+      list.map(asset => {
+        const role = roleMap.get(asset.id);
+        return role ? { ...asset, role: role === "unassigned" ? undefined : role } : asset;
+      });
+
+    const knownIds = new Set(activeAssets.map(a => a.id));
+    const appliedCount = roles.filter(r => knownIds.has(r.assetId)).length;
+    const skippedCount = roles.length - appliedCount;
+
+    if (scannedAssets) {
+      setScannedAssets(applyRoles(scannedAssets));
+    } else {
+      updateProjectAssets(applyRoles(assets));
+    }
+    return { appliedCount, skippedCount };
+  };
+
   const handleImportAiResult = () => {
     const result = importCampaignJson(aiResultText);
+    let assetImport: { appliedCount: number; skippedCount: number } | null = null;
+    try {
+      const roles = parseAssetRoleResult(aiResultText);
+      if (roles.length > 0) {
+        assetImport = applyAssetRoleList(roles);
+      }
+    } catch {
+      // The campaign importer below will show the JSON error if nothing else imports.
+    }
+
     if (!result.ok) {
+      if (assetImport && assetImport.appliedCount > 0) {
+        setAiResultText("");
+        setAiImportFeedback({
+          kind: "ok",
+          summary: `Imported ${assetImport.appliedCount} asset role${assetImport.appliedCount === 1 ? "" : "s"}.`,
+          warnings: ["No brand or campaign concepts were found in that answer. The asset labels still imported."],
+        });
+        return;
+      }
       setAiImportFeedback({ kind: "error", error: result.error });
       return;
     }
@@ -337,6 +373,9 @@ export default function ProjectScanPage({
       setImportedConcepts(result.concepts);
       setSelectedConceptId(result.concepts[0]!.id);
       parts.push(`${result.concepts.length} concept${result.concepts.length === 1 ? "" : "s"}`);
+    }
+    if (assetImport && assetImport.appliedCount > 0) {
+      parts.push(`${assetImport.appliedCount} asset role${assetImport.appliedCount === 1 ? "" : "s"}`);
     }
 
     setBriefImported(true);
@@ -366,22 +405,7 @@ export default function ProjectScanPage({
         return;
       }
 
-      const roleMap = new Map(roles.map(r => [r.assetId, r.role]));
-      const applyRoles = (list: ProjectAsset[]) =>
-        list.map(asset => {
-          const role = roleMap.get(asset.id);
-          return role ? { ...asset, role: role === "unassigned" ? undefined : role } : asset;
-        });
-
-      const knownIds = new Set(activeAssets.map(a => a.id));
-      const appliedCount = roles.filter(r => knownIds.has(r.assetId)).length;
-      const skippedCount = roles.length - appliedCount;
-
-      if (scannedAssets) {
-        setScannedAssets(applyRoles(scannedAssets));
-      } else {
-        updateProjectAssets(applyRoles(assets));
-      }
+      const { appliedCount, skippedCount } = applyAssetRoleList(roles);
 
       setAssetAiText("");
       setAssetAiFeedback({
@@ -575,30 +599,29 @@ export default function ProjectScanPage({
 
       {activeAssets.length > 0 && (
         <Card
-          title="3 · Ask AI what this project is"
-          eyebrow="Required before campaign generation"
+          title="3 · Ask AI for everything"
+          eyebrow="One prompt, one answer"
           action={
             <div className="button-row">
-              <SendToAI promptText={designBriefPrompt} buttonText="Make product brief" />
-              <SendToAI promptText={combinedBriefCampaignPrompt} buttonText="Brief + campaign" />
+              <SendToAI promptText={combinedBriefCampaignPrompt} buttonText="Ask AI for everything" />
+              <button onClick={() => downloadText("launchfoundry-all-in-one-ai-prompt.md", combinedBriefCampaignPrompt)}>Download prompt</button>
               <button onClick={handleCopyAuditPrompt}>{auditCopied ? "✓ Copied" : "Copy audit prompt"}</button>
-              <button onClick={() => downloadText("launchfoundry-website-audit-prompt.md", auditPrompt)}>Download audit prompt</button>
             </div>
           }
         >
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>
-            Send this to an AI bot with your project files. Paste the JSON answer below. LaunchFoundry will fill in the product, audience, offer, tone, and campaign ideas.
+            Send this to an AI bot with your review file and asset contact sheet. Paste the JSON answer below. LaunchFoundry will fill in the product, audience, campaign ideas, scene asset IDs, and asset labels all at once.
           </p>
           <textarea
             value={aiResultText}
             onChange={e => setAiResultText(e.target.value)}
             rows={9}
-            placeholder='{ "projectName": "...", "oneLiner": "...", "primaryAudience": "..." }'
+            placeholder='{ "brand": {...}, "concepts": [...], "assetRoles": [...] }'
             style={{ marginTop: 12, fontFamily: "var(--mono)", fontSize: 12 }}
           />
           <div className="button-row" style={{ marginTop: 10 }}>
             <button className="primary" onClick={handleImportAiResult} disabled={!aiResultText.trim()}>
-              Import Step 3 result
+              Use AI answer
             </button>
             {briefImported && <button onClick={goToCampaignPrompt}>Review campaign input</button>}
           </div>
@@ -622,8 +645,8 @@ export default function ProjectScanPage({
 
       {activeAssets.length > 0 && (
         <Card
-          title="4 · Make campaign ideas"
-          eyebrow={briefImported ? "Unlocked" : "Locked until Step 3 is imported"}
+          title="4 · Need another campaign prompt?"
+          eyebrow={briefImported ? "Optional" : "Locked until Step 3 is imported"}
           action={
             briefImported ? (
               <div className="button-row">
@@ -641,12 +664,12 @@ export default function ProjectScanPage({
         >
           {!briefImported && (
             <div className="locked-step">
-              Paste the Step 3 AI answer first. That gives this campaign prompt the right product, audience, offer, tone, and CTA.
+              Paste the Step 3 AI answer first. Most users will not need this box.
             </div>
           )}
           {briefImported && (
             <p className="helper-copy">
-              This prompt now uses the Step 3 answer. If AI returns full campaign JSON, paste it back into the Step 3 box above.
+              This is a backup prompt if you want fresh campaign ideas later. Paste any full AI JSON answer back into the Step 3 box above.
             </p>
           )}
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>

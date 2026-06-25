@@ -5,7 +5,7 @@ import { runQA } from "./qa";
 import { renderPublishingPack } from "./templateUtils";
 import { loadState, saveState } from "./storage";
 import { parseCodeReview } from "./codeReviewParser";
-import { buildAssetMetadataPowerShell, buildAssetShortlistPrompt, buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "./auditPrompt";
+import { buildAssetMetadataPowerShell, buildAssetShortlistPrompt, buildCombinedBriefCampaignPrompt, buildProjectExportPowerShell, buildWebsiteAuditPrompt } from "./auditPrompt";
 import { importCampaignJson } from "./importCampaign";
 
 const brand: BrandProfile = {
@@ -172,6 +172,29 @@ describe("project review imports", () => {
     expect(command).toContain("--print-to-pdf");
     expect(command).toContain("$projectRoot = \"C:\\Sites\\demo-site\"");
     expect(command).toContain('"asset-1"');
+  });
+
+  it("builds one prompt for brand, campaigns, and asset choices", () => {
+    const prompt = buildCombinedBriefCampaignPrompt("Demo Site", { "README.md": "# Demo" }, assets, {
+      id: "prompt-1",
+      projectName: "Demo Site",
+      platform: "facebook_reel",
+      goal: "Create a 7-day reels campaign.",
+      audienceHint: "Homeowners",
+      toneHint: "plainspoken",
+      offerHint: "Repair work",
+      constraints: [],
+      createdAt: "2026-01-01T00:00:00.000Z",
+    }, '[{"id":"asset-1","width":1920}]');
+
+    expect(prompt).toContain('"brand"');
+    expect(prompt).toContain('"concepts"');
+    expect(prompt).toContain('"assetRoles"');
+    expect(prompt).toContain('"reelPlan"');
+    expect(prompt).toContain('"imageGenerationReferences"');
+    expect(prompt).toContain("Put asset IDs directly into concept.scenes[].assetIds");
+    expect(prompt).toContain('"asset-1"');
+    expect(prompt).toContain('"width":1920');
   });
 });
 
